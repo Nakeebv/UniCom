@@ -486,42 +486,56 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   Widget _originalToggle({required String translated}) {
     final source = LanguageRegistry.of(widget.message.sourceLanguage);
+    final target = LanguageRegistry.of(widget.targetLanguage);
+    final showSourceName = source.code != target.code;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Material(
-        color: Palette.iris.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
+      child: Semantics(
+        // Semantic toggle: "Translated ⇄ Original in {language}"; the
+        // canonical message is never mutated by switching views.
+        label: _showOriginal
+            ? 'View translation'
+            : 'View original in ${source.nativeName}',
+        button: true,
+        child: Material(
+          color: Palette.iris.withValues(alpha: .08),
           borderRadius: BorderRadius.circular(999),
-          onTap: () => setState(() => _showOriginal = !_showOriginal),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _showOriginal
-                      ? Icons.language_rounded
-                      : Icons.translate_rounded,
-                  size: 12.5,
-                  color: Palette.irisDark,
-                ),
-                const SizedBox(width: 5),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => setState(() => _showOriginal = !_showOriginal),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
                     _showOriginal
-                        ? 'Translated'
-                        : 'Original · ${source.nativeName}',
-                    key: ValueKey(_showOriginal),
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: Palette.irisDark,
+                        ? Icons.language_rounded
+                        : Icons.translate_rounded,
+                    size: 12.5,
+                    color: Palette.irisDark,
+                  ),
+                  const SizedBox(width: 5),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _showOriginal
+                          ? (showSourceName
+                              ? 'Original · ${source.nativeName}'
+                              : 'Original')
+                          : 'Translated to ${target.nativeName}',
+                      key: ValueKey(_showOriginal),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: Palette.irisDark,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

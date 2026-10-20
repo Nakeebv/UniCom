@@ -1,8 +1,10 @@
 # UniCom — Flutter App
 
-**Unified Global Communications.** A multilingual messaging app (Android · iOS · Web) where every user picks a language once and UniCom automatically translates incoming messages and voice notes into it — with the original always one tap away.
+**Unified Global Communications.** One World. Every Language.
 
-Built with Flutter + Riverpod, mirroring the UniCom architecture doc: modular features, an explicit translation/voice pipeline with graceful fallbacks, and provider-agnostic AI adapters.
+A multilingual messaging app (Android · iOS · Web) where every user picks a language once, and incoming messages — including voice notes — are translated into it. The original content stays canonical and one tap away. The brand mark is a speech-inspired "U": two speakers, two languages, one conversation.
+
+Built with Flutter + Riverpod (dark-mode-first "Brand Teal" design system, Inter typography).
 
 ## Run it
 
@@ -10,62 +12,69 @@ Built with Flutter + Riverpod, mirroring the UniCom architecture doc: modular fe
 cd unicom_app
 flutter pub get
 flutter run                # pick an iOS / Android device or emulator
+flutter test               # 47 tests: language routing, voice pipeline, navigation, responsiveness
 ```
 
-Everything runs **fully offline**: translation, speech-to-text, and speech synthesis are simulated by a deterministic demo engine so the complete product experience is visible without servers or API keys.
+> **Sign in with any email** (e.g. `demo@unicom.app` / any password), or register, verify (any 4-digit code), and pick your language. The demo seeds conversations with contacts speaking Spanish 🇪🇸, Yorùbá 🇳🇬, French 🇫🇷, Hausa 🇳🇬, Arabic 🇸🇦, Portuguese 🇵🇹 and Chinese 🇨🇳 (intentionally demonstrates the graceful "translation unavailable" state). A seeded **Team Align** group has members speaking three different languages.
 
-> **Sign in with any email** — or register, verify (any code), and pick your language. The demo seeds conversations with contacts speaking Spanish 🇪🇸, Yorùbá 🇳🇬, French 🇫🇷, Hausa 🇳🇬, Arabic 🇸🇦, Portuguese 🇵🇹 and Chinese 🇨🇳 (the last one intentionally demonstrates the graceful “translation unavailable” state).
+## What is real vs. simulated
 
-## What to try
-
-| Feature | Where |
+| Capability | Status |
 | --- | --- |
-| Automatic message translation with live “Translating…” shimmer | Open any chat, send a message |
-| Original ⇄ translated toggle | Any incoming bubble’s pill toggle |
-| Voice-note pipeline (upload → STT → MT → TTS) with animated stepper | 🎙 mic in the composer |
-| Transcribed + translated voice playback variants | Amara’s chat (seeded voice note) |
-| Partial-state handling (text ready, audio unavailable) + retry | Élodie / voice settings without TTS |
-| Language capability registry (MT / STT / TTS / detect) | Settings → Language |
-| Read receipts (✓ sent / ✓✓ delivered / read), typing, unread badges | Chat list + bubbles |
-| Privacy model disclosure, block & report | Chat long-press / Settings → Privacy |
-| Light / dark / system themes | Settings → Appearance |
+| Microphone recording | **Real** on iOS/Android (`record` package): permission flow (denied / permanently-denied → system settings), elapsed time + live input levels, stop → replay → discard/send, cancel-safe cleanup. Web build shows an honest labelled fallback (no mic API). |
+| Audio playback | **Real** (`just_audio`): play/pause, position stream, tap-to-seek on the waveform, completion, playback speed, correct disposal. Replay plays the actual recorded file. |
+| Recipient-specific translation | **Real routing logic** on the canonical-message model: one message, one translation record per target language; groups create a record per member language; each viewer renders their own. |
+| Translated audio variants ("Play in Yorùbá") | **Simulated** (demo): the pipeline marks variants complete per the language registry's TTS capability; playback of a variant is labelled "Translated speech (demo audio)". Swap the TTS adapter for production. |
+| Text MT / STT| **Simulated** deterministic offline engine (`DemoTranslator` phrasebook) with per-language capability registry — unsupported pairs show `unavailable` + Retry, never fake success. |
+| Messaging transport | **Demo** in-memory backend (`MockBackend`) mirroring the Next.js API contract in `../src/`; no networking in the client yet. |
 
-## Architecture map
+Seeded demo voice notes without stored media play a generated quiet tone of matching duration so progress/seek/completion behave like real audio — labelled "(demo)".
+
+## Features
+
+- Translation-first chat: translated-by-default incoming bubbles, "Translated to {language} ⇄ Original in {language}" toggle that never mutates the canonical message, pending/processing/completed/unavailable states with retry.
+- Voice notes: full pipeline presentation (upload → queued → transcribing → translating → speech → completed/partial/failed-retryable), original + translated transcripts, labelled original vs translated playback from the recipient's actual language preference.
+- Auto-translate and auto-play-translated-audio preferences (**auto-play off by default** — UniCom never starts sound unprompted), preferred original-audio-first option, playback speed.
+- Familiar messaging UX: delivery receipts (✓/✓✓/read), typing indicators, unread badges, swipe-to-mute/clear, share sheet, polls with live tallies, groups with per-member languages, contacts, call screens, block/report with confirmations.
+- Responsive: bottom nav on phones, NavigationRail ≥ 600px, constrained forms/bubble widths, 8-viewport + 2.0× text-scale test coverage.
+
+## Architecture
 
 ```
 lib/
-├── core/            design tokens, theme (Sora+Inter), utils
+├── core/
+│   ├── theme/         palette.dart (tokens) · theme.dart (Inter, UniColors ext., Layout/breakpoints)
+│   └── audio/         recording_service.dart (record pkg + permission flow)
+│                      playback_service.dart (just_audio controller)
+│                      demo_audio.dart|_io|_stub (conditional WAV source)
 ├── data/
-│   ├── models/      User, Conversation, Message, Translation, VoicePayload,
-│   │                Language registry (capabilities per language)
-│   └── demo/        DemoTranslator (offline phrasebook MT),
-│                    MockBackend (API + BullMQ-worker stand-in):
-│                    idempotent sends, delivery receipts, translation jobs
-│                    with retry/unavailable states, voice pipeline state
-│                    machine, simulated typing & replies
-├── features/        splash · onboarding · auth · chats · chat (+ widgets) ·
-│                    friends · calls (roadmap) · settings
-└── shared/widgets/  ui kit (avatar, chips, buttons, shimmer, sheets…)
+│   ├── models/        user · conversation · message (text/voice/poll, translations map)
+│   │                  language registry (MT/STT/TTS/detect capabilities)
+│   └── demo/          avatar_registry (deterministic Unsplash placeholders)
+│                      mock_backend.dart (canonical messages, per-recipient
+│                      translation jobs, voice pipeline, receipts, groups, polls)
+├── features/          splash · onboarding · auth · chats · chat (+widgets:
+│                      bubble/voice/waveform/composer/recorder) · contacts ·
+│                      calls · groups · profile · settings · shell
+└── shared/widgets/    logo (vector speech-U, light/dark/mono) · ui_kit · sheets · kit_scaffold
 ```
 
-### Swapping the demo for real providers
+### Swapping demo for production
 
-The architecture doc’s provider contracts map 1:1 onto the demo:
+- `DemoTranslator` → a real `TranslationProvider` adapter (per-pair capability flags stay).
+- `_runVoicePipeline` stages → async jobs calling real STT/TTS; translated-audio variants then carry real source keys and the "(demo audio)" labels disappear.
+- `MockBackend` → repositories against the Next.js API in `../src/` (auth, conversations, messages, translations, media, sync). UI reads only the ChangeNotifier surface, so screens are unchanged.
 
-- `DemoTranslator.translate/detect` → implement `TranslationProvider` with a real MT vendor adapter.
-- `_runVoicePipeline` stages → BullMQ jobs calling `SpeechToTextProvider` / `TextToSpeechProvider`.
-- `MockBackend` screens touch nothing but its ChangeNotifier surface → replace with real repositories (NestJS `/api/v1`) without UI changes.
-
- secrecy: no secrets or keys are needed or embedded; the demo is 100% local.
+No secrets or API keys are embedded in the client.
 
 ## Platform notes
 
-- iOS: `NSMicrophoneUsageDescription` already configured for when real recording is wired.
-- Android: `INTERNET`, `RECORD_AUDIO`, `POST_NOTIFICATIONS` declared in the main manifest.
-- Web build verified (`flutter build web`) — app also runs in a browser for quick previews.
+- iOS: `NSMicrophoneUsageDescription` configured (real recording).
+- Android: `INTERNET`, `RECORD_AUDIO`, `POST_NOTIFICATIONS` declared; launcher icons generated (`flutter_launcher_icons`).
+- Web release build verified — recording/playback degrade with explicit labels there.
 
 ## Verified
 
-- `flutter analyze` → **No issues found**
-- `flutter test` → **All tests passed**
-- `flutter build web --release` → ✅ built
+- `flutter analyze` → 0 errors / 0 warnings
+- `flutter test` → 46+ tests passing (per-recipient routing yo↔ar, 3-language group fan-out, canonical immutability, pending→completed, unavailable+retry, TTS-partial voice, prefs round-trip, nav↔branch alignment, overflow matrix @ 8 viewports + 2× text scale)
+- `flutter build web --release` → ✅

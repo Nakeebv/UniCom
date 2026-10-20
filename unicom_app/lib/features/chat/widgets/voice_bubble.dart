@@ -481,28 +481,38 @@ class _VoiceBubbleViewState extends ConsumerState<VoiceBubbleView> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _VariantChip(
-                flag: source.flag,
-                label: 'Original',
-                selected: _playingOriginal || !_playingTranslated,
-                onTap:
-                    () => setState(() {
-                      _playingOriginal = true;
-                      _playingTranslated = false;
-                    }),
+              // Labels come from the actual source/target languages —
+              // "Play original / Play in Yorùbá" — never hardcoded.
+              Semantics(
+                button: true,
+                label: 'Play original',
+                child: _VariantChip(
+                  flag: source.flag,
+                  label: 'Original',
+                  selected: _playingOriginal || !_playingTranslated,
+                  onTap:
+                      () => setState(() {
+                        _playingOriginal = true;
+                        _playingTranslated = false;
+                      }),
+                ),
               ),
-              _VariantChip(
-                flag: target.flag,
-                label: 'Translated',
-                selected: _playingTranslated,
-                enabled: translatedReady,
-                onTap:
-                    translatedReady
-                        ? () => setState(() {
-                          _playingTranslated = true;
-                          _playingOriginal = false;
-                        })
-                        : null,
+              Semantics(
+                button: true,
+                label: 'Play in ${target.nativeName}',
+                child: _VariantChip(
+                  flag: target.flag,
+                  label: target.nativeName,
+                  selected: _playingTranslated,
+                  enabled: translatedReady,
+                  onTap:
+                      translatedReady
+                          ? () => setState(() {
+                            _playingTranslated = true;
+                            _playingOriginal = false;
+                          })
+                          : null,
+                ),
               ),
             ],
           ),
