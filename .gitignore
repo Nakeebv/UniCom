@@ -1,0 +1,28 @@
+# ── Flutter / Dart ────────────────────────────────────────────────────────
+unicom_app/.dart_tool/
+unicom_app/build/
+unicom_app/.flutter-plugins
+unicom_app/.flutter-plugins-dependencies
+unicom_app/.packages
+**/Generated.xcconfig
+**/generated_plugin_registrant.*
+unicom_app/ios/Pods/
+unicom_app/ios/.symlinks/
+unicom_app/android/.gradle/
+**/*.iml
+
+# ── Node / Next.js (backend + web landing) ────────────────────────────────
+node_modules/
+.next/
+out/
+drizzle/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# ── Misc ──────────────────────────────────────────────────────────────────
+*.log
+.DS_Store
+Thumbs.db

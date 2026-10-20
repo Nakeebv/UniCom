@@ -1,0 +1,55 @@
+name: unicom
+description: UniCom — Unified Global Communications. Multilingual messaging with automatic translation of text and voice notes.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management (pinned to the 2.x line for API stability)
+  flutter_riverpod: 2.6.1
+
+  # Declarative navigation
+  go_router: ^14.0.0
+
+  # Typography
+  google_fonts: ^6.2.0
+
+  # Local persistence for demo settings/session
+  shared_preferences: ^2.2.0
+
+  cupertino_icons: ^1.0.8
+
+  # Real microphone capture (iOS/Android). Web uses a graceful fallback:
+  # the `record` package has no web implementation.
+  record: ^5.1.2
+
+  # Real audio playback for voice notes (federated web support included).
+  just_audio: ^0.10.0
+
+  # Microphone permission flow (denied / permanently-denied handling).
+  permission_handler: ^12.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  image_path: "assets/brand/unicorn/icon_1024.png"
+  android: "launcher_icon"
+  adaptive_icon_background: "#0E1A1C"
+  adaptive_icon_foreground: "assets/brand/unicorn/icon_1024_foreground.png"
+  ios: true
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/avatars/
