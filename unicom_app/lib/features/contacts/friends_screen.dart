@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
-import '../../data/demo/mock_backend.dart';
+import '../../data/backend_base.dart';
 import '../../data/models/language.dart';
 import '../../data/models/user.dart';
 import '../../providers.dart';
@@ -211,7 +211,7 @@ class _PersonTile extends ConsumerWidget {
   const _PersonTile({required this.person, required this.backend});
 
   final UserProfile person;
-  final MockBackend backend;
+  final UniBackend backend;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

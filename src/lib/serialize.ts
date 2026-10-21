@@ -21,6 +21,7 @@ export type PublicUser = {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarUrl: string | null;
   preferredLanguage: string;
   online: boolean;
   lastSeenAt: string | null;
@@ -31,6 +32,7 @@ function toPublicUser(u: {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarKey?: string | null;
   lastSeenAt: Date | null;
   preferredLanguage?: string | null;
 }): PublicUser {
@@ -39,6 +41,7 @@ function toPublicUser(u: {
     username: u.username,
     displayName: u.displayName,
     avatarHue: u.avatarHue,
+    avatarUrl: u.avatarKey ? `/api/users/${u.id}/avatar` : null,
     preferredLanguage: u.preferredLanguage ?? "en",
     online: !!u.lastSeenAt && Date.now() - u.lastSeenAt.getTime() < ONLINE_WINDOW_MS,
     lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
@@ -53,6 +56,7 @@ export async function loadPublicUsers(ids: string[]): Promise<Map<string, Public
       username: users.username,
       displayName: users.displayName,
       avatarHue: users.avatarHue,
+      avatarKey: users.avatarKey,
       lastSeenAt: users.lastSeenAt,
       preferredLanguage: userPreferences.preferredLanguage,
     })
@@ -99,7 +103,7 @@ export type MessageView = {
       updatedAt: string;
       sourceVersion: number;
     } | null;
-    voiceJob: { status: string; detail: string | null } | null;
+    voiceJob: { status: string; detail: string | null; speech_media_id: string | null } | null;
   };
   media: { id: string; mimeType: string; sizeBytes: number; durationMs: number | null } | null;
   receipts: { total: number; delivered: number; read: number; lastReadAt: string | null };
@@ -209,7 +213,13 @@ export async function hydrateMessages(msgRows: MessageRow[], viewerLanguage: str
                 sourceVersion: chosen.sourceVersion,
               }
             : null,
-        voiceJob: job ? { status: job.status, detail: job.detail } : null,
+        voiceJob: job
+          ? {
+              status: job.status,
+              detail: job.detail,
+              speech_media_id: job.outputMediaId ?? null,
+            }
+          : null,
       },
       media: m.mediaAssetId ? (mediaMap.get(m.mediaAssetId) ?? null) : null,
       receipts: {

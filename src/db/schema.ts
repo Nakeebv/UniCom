@@ -18,6 +18,8 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
   avatarHue: integer("avatar_hue").notNull().default(220),
+  // R2 object key for the user's uploaded avatar (null → hue/initials avatar).
+  avatarKey: text("avatar_key"),
   bio: text("bio"),
   isPersona: boolean("is_persona").notNull().default(false),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true, mode: "date" }),
@@ -146,11 +148,14 @@ export const mediaAssets = pgTable("media_assets", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id),
+  kind: text("kind").notNull().default("voice"), // voice | tts | image
   mimeType: text("mime_type").notNull(),
   sizeBytes: integer("size_bytes").notNull(),
   durationMs: integer("duration_ms"),
-  // Demo-tier object storage: bytes live in the DB; production uses S3 keys.
-  dataBase64: text("data_base64").notNull(),
+  // Exactly one of the two below is set: R2 key (production) or inline bytes
+  // (demo tier without R2 credentials).
+  storageKey: text("storage_key"),
+  dataBase64: text("data_base64"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
 
@@ -167,6 +172,11 @@ export const voiceJobs = pgTable(
     status: text("status").notNull().default("queued"),
     attempts: integer("attempts").notNull().default(0),
     detail: text("detail"),
+    // Audio asset of the synthesized target-language speech variant, when
+    // generation succeeded (kind: tts).
+    outputMediaId: text("output_media_id").references(() => mediaAssets.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },

@@ -69,10 +69,20 @@ class _VoiceBubbleViewState extends ConsumerState<VoiceBubbleView> {
     await _teardownPlayer();
     final controller = VoicePlaybackController();
     try {
+      // Remote mode: resolve presigned URLs for original / translated speech
+      // assets on demand (they expire, so never cache them for later).
+      String? url;
+      final backend = ref.read(backendProvider);
+      final assetId =
+          translated ? widget.voice.speechAssetId : widget.voice.mediaAssetId;
+      if (assetId != null) {
+        url = await backend.mediaAssetUrl(assetId);
+      }
       await controller.loadSame(
         cacheKey: _variantKey(translated),
         filePath: widget.voice.recordedFilePath,
         declaredDuration: widget.voice.duration,
+        url: url,
         onCompleted: () {
           if (mounted) {
             setState(() {

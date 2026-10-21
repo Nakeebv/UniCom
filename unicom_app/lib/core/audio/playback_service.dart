@@ -32,20 +32,33 @@ class VoicePlaybackController {
 
   /// Ensures a player loaded with the given source; returns the total
   /// duration of the actual audio.
+  ///
+  /// Source priority: [url] (presigned remote asset) → [filePath] (real
+  /// recording) → demo tone (offline demo notes).
   Future<Duration> loadSame({
     required String cacheKey,
     required String? filePath,
     required Duration declaredDuration,
+    String? url,
     void Function()? onCompleted,
   }) async {
     final key =
-        '$cacheKey|${filePath ?? 'demo'}|${declaredDuration.inMilliseconds}';
+        '$cacheKey|${url ?? filePath ?? 'demo'}|${declaredDuration.inMilliseconds}';
     if (_loadedKey == key && _player != null)
       return _player!.duration ?? declaredDuration;
 
     await dispose();
     _completed = false;
     _player = AudioPlayer();
+
+    // Remote asset: presigned HTTP(S) URL (works on every platform, no
+    // session headers needed — the signature carries the authorization).
+    if (url != null && url.startsWith('http')) {
+      await _player!.setUrl(url);
+      _loadedKey = key;
+      _listenCompletion(onCompleted);
+      return _player!.duration ?? declaredDuration;
+    }
 
     String? sourcePath = filePath;
     if (sourcePath == null || !sourcePath.startsWith('/')) {
@@ -67,14 +80,18 @@ class VoicePlaybackController {
 
     await _player!.setFilePath(sourcePath);
     _loadedKey = key;
+    _listenCompletion(onCompleted);
 
+    return _player!.duration ?? declaredDuration;
+  }
+
+  void _listenCompletion(void Function()? onCompleted) {
     _stateSub = _player!.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         _completed = true;
         onCompleted?.call();
       }
     });
-    return _player!.duration ?? declaredDuration;
   }
 
   bool get isPlaying => _player?.playing ?? false;

@@ -8,31 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils.dart';
 import '../demo/demo_translator.dart';
+import '../backend_base.dart';
 import '../models/conversation.dart';
 import '../models/language.dart';
 import '../models/message.dart';
 import '../models/user.dart';
-
-/// Demo voices for translated speech synthesis.
-@immutable
-class VoiceOption {
-  const VoiceOption(this.id, this.name, this.tag, this.flag);
-  final String id;
-  final String name;
-  final String tag;
-  final String flag;
-}
-
-abstract final class VoiceCatalog {
-  static const List<VoiceOption> voices = [
-    VoiceOption('aria', 'Aria', 'Warm · measured', '🇬🇧'),
-    VoiceOption('kade', 'Kade', 'Deep · confident', '🇺🇸'),
-    VoiceOption('zara', 'Zara', 'Bright · lively', '🇪🇸'),
-    VoiceOption('yemi', 'Yẹmí', 'Natural · Yorùbá', '🇳🇬'),
-    VoiceOption('amal', 'Amal', 'Clear · MSA', '🇸🇦'),
-    VoiceOption('juma', 'Juma', 'Easy · Swahili', '🇰🇪'),
-  ];
-}
 
 /// In-memory demo backend + orchestration engine.
 ///
@@ -40,7 +20,13 @@ abstract final class VoiceCatalog {
 /// provider adapters described in the architecture. Every screen talks to
 /// this notify-driven service, so replacing it with real repositories is a
 /// drop-in change.
-class MockBackend extends ChangeNotifier {
+class MockBackend extends UniBackend {
+  @override
+  Future<String?> mediaAssetUrl(String assetId) async {
+    // Demo tones resolve locally in the playback controller; nothing to fetch.
+    return null;
+  }
+
   MockBackend();
 
   final Random _rnd = Random();
@@ -269,6 +255,7 @@ class MockBackend extends ChangeNotifier {
     notifyListeners();
   }
 
+  @override
   Future<void> updateProfile({
     String? name,
     String? username,

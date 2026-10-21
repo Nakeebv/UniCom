@@ -9,7 +9,7 @@ import '../../data/models/conversation.dart';
 import '../../data/models/language.dart';
 import '../../data/models/message.dart';
 import '../../data/models/user.dart';
-import '../../data/demo/mock_backend.dart';
+import '../../data/backend_base.dart';
 import '../../providers.dart';
 import '../../shared/widgets/kit_scaffold.dart';
 import '../../shared/widgets/sheets.dart';
@@ -29,6 +29,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scroll = ScrollController();
   String? _convId;
+  UniBackend? _cachedBackend;
 
   @override
   void didChangeDependencies() {
@@ -37,6 +38,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (id != _convId) {
       _convId = id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        _cachedBackend?.asRemote?.setActiveConversation(id);
         ref.read(backendProvider).markRead(id!);
         _jumpBottom();
       });
@@ -45,6 +47,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    _cachedBackend?.asRemote?.setActiveConversation(null);
     _scroll.dispose();
     super.dispose();
   }
@@ -64,6 +67,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final backend = ref.watch(backendProvider);
+    _cachedBackend = backend;
     final conv = backend.conversationOf(_convId ?? '');
     final me = backend.me;
     if (conv == null || me == null) {
@@ -123,7 +127,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _jumpBottom();
                 },
                 onDemoVoice: (duration) async {
-                  backend.sendVoiceNote(
+                  final mock = backend.asMock;
+                  if (mock == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Demo voice notes are offline-mode only — record with the mic instead',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  mock.sendVoiceNote(
                     conv.id,
                     duration,
                     Message.seededWaveform('demo-${DateTime.now()}'),
@@ -146,7 +161,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     BuildContext context,
     Message m,
     Conversation conv,
-    MockBackend backend,
+    UniBackend backend,
     UserProfile me,
     int index,
   ) {
@@ -251,7 +266,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   PreferredSizeWidget _appBar(
     BuildContext context,
-    MockBackend backend,
+    UniBackend backend,
     Conversation conv,
     UserProfile other,
   ) {

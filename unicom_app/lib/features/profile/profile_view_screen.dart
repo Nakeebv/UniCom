@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
-import '../../data/demo/mock_backend.dart';
+import '../../data/backend_base.dart';
 import '../../data/models/language.dart';
 import '../../data/models/user.dart';
 import '../../providers.dart';
@@ -212,7 +212,7 @@ class ProfileViewScreen extends ConsumerWidget {
     );
   }
 
-  String meLanguageLabel(MockBackend backend) =>
+  String meLanguageLabel(UniBackend backend) =>
       LanguageRegistry.of(backend.me?.languageCode ?? 'en').nativeName;
 
   void _optionsSheet(

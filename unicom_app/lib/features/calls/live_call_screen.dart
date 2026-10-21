@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
-import '../../data/demo/mock_backend.dart';
+import '../../data/backend_base.dart';
 import '../../providers.dart';
 import '../../shared/widgets/sheets.dart';
 
@@ -37,7 +37,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     super.dispose();
   }
 
-  String _peerName(MockBackend backend) {
+  String _peerName(UniBackend backend) {
     final me = backend.me?.name ?? 'You';
     return me;
   }

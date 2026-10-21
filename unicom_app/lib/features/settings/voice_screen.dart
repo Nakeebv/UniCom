@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/palette.dart';
-import '../../data/demo/mock_backend.dart';
+import '../../data/models/voice_catalog.dart';
 import '../../data/models/language.dart';
 import '../../providers.dart';
 import '../../shared/widgets/ui_kit.dart';

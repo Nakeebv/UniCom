@@ -239,7 +239,7 @@ export default function ChatApp() {
       deleted: false,
       originalText: text,
       sender: { id: meNow.id, displayName: meNow.displayName, username: meNow.username, avatarHue: meNow.avatarHue },
-      viewer: { language: meNow.preferredLanguage, sameAsSource: true, translation: null, voiceJob: type === "voice" ? { status: "queued", detail: "uploading" } : null },
+      viewer: { language: meNow.preferredLanguage, sameAsSource: true, translation: null, voiceJob: type === "voice" ? { status: "queued", detail: "uploading", speech_media_id: null } : null },
       media: null,
       receipts: { total: 0, delivered: 0, read: 0, lastReadAt: null },
     };

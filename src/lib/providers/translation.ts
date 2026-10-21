@@ -106,14 +106,88 @@ const phrasebook: Provider = {
 function providerOrder(): Provider[] {
   switch (process.env.TRANSLATION_PROVIDER ?? "auto") {
     case "mymemory":
-      return [mymemory, phrasebook];
+      return withGroqIfConfigured([mymemory, phrasebook]);
     case "gtx":
-      return [googleGtx, phrasebook];
+      return withGroqIfConfigured([googleGtx, phrasebook]);
     case "offline":
       return [phrasebook];
     default:
-      return [mymemory, googleGtx, phrasebook];
+      return withGroqIfConfigured([mymemory, googleGtx, phrasebook]);
   }
+}
+
+/**
+ * Groq hosts open LLMs (default llama-3.3-70b) with a generous free tier.
+ * When a key exists, an LLM provider is PREPENDED: it produces markedly
+ * better translations than the free keyless endpoints, especially for rare
+ * language pairs and longer sentences. The prompt is constrained to output
+ * translation text only. Falls through to the classic chain on any failure.
+ */
+function withGroqIfConfigured(base: Provider[]): Provider[] {
+  if (!groqMt) return base;
+  return [groqMt, ...base];
+}
+
+const groqMt: Provider | null = buildGroqMt();
+
+function buildGroqMt(): Provider | null {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) return null;
+  const model = process.env.GROQ_MT_MODEL?.trim() || "llama-3.3-70b-versatile";
+  const baseUrl = process.env.GROQ_BASE_URL?.trim() || "https://api.groq.com/openai/v1";
+
+  return {
+    name: `groq:${model}`,
+    async translate(text, source, target) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20_000);
+      try {
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            temperature: 0.2,
+            max_tokens: Math.min(2048, Math.max(128, Math.ceil(text.length * 3))),
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a translation engine inside the UniCom messenger. " +
+                  `Translate the user's message from language code "${source}" to language code "${target}". ` +
+                  "Rules: output ONLY the translation — no quotes, no explanations, no language names. " +
+                  "Preserve tone, emoji, names, links and line breaks. " +
+                  "If the text is already in the target language, output it unchanged.",
+              },
+              { role: "user", content: text },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new ProviderError(`groq:${model}`, `http ${res.status} ${detail.slice(0, 120)}`);
+        }
+        const data = (await res.json().catch(() => null)) as
+          | { choices?: Array<{ message?: { content?: string } }> }
+          | null;
+        const out = data?.choices?.[0]?.message?.content?.trim();
+        if (!out) throw new ProviderError(`groq:${model}`, "empty response");
+        // Some models like to wrap translations in quotes — strip symmetric wrappers.
+        const cleaned = out.replace(/^["“”'«»]+|["“”'«»]+$/g, "").trim();
+        if (!cleaned) throw new ProviderError(`groq:${model}`, "empty response");
+        return { translatedText: cleaned };
+      } catch (err) {
+        if (err instanceof ProviderError) throw err;
+        throw new ProviderError(`groq:${model}`, err instanceof Error ? err.message : "request failed");
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  };
 }
 
 /** Privacy-aware cache: in-memory only, keyed by content hash, per-process. */

@@ -30,6 +30,7 @@ export type SessionUser = {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarUrl: string | null;
   bio: string | null;
   isPersona: boolean;
   preferredLanguage: string;
@@ -106,6 +107,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       username: users.username,
       displayName: users.displayName,
       avatarHue: users.avatarHue,
+      avatarKey: users.avatarKey,
       bio: users.bio,
       isPersona: users.isPersona,
       lastSeenAt: users.lastSeenAt,
@@ -132,6 +134,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     username: row.username,
     displayName: row.displayName,
     avatarHue: row.avatarHue,
+    avatarUrl: row.avatarKey ? `/api/users/${row.id}/avatar` : null,
     bio: row.bio,
     isPersona: row.isPersona,
     lastSeenAt: row.lastSeenAt,

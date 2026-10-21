@@ -493,9 +493,10 @@ class _MessageBubbleState extends State<MessageBubble> {
       child: Semantics(
         // Semantic toggle: "Translated ⇄ Original in {language}"; the
         // canonical message is never mutated by switching views.
-        label: _showOriginal
-            ? 'View translation'
-            : 'View original in ${source.nativeName}',
+        label:
+            _showOriginal
+                ? 'View translation'
+                : 'View original in ${source.nativeName}',
         button: true,
         child: Material(
           color: Palette.iris.withValues(alpha: .08),

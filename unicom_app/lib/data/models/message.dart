@@ -115,6 +115,8 @@ class VoicePayload {
     this.error,
     this.storageKey,
     this.recordedFilePath,
+    this.mediaAssetId,
+    this.speechAssetId,
   });
 
   final String jobId;
@@ -135,6 +137,14 @@ class VoicePayload {
   /// Local path of genuinely recorded audio (mobile mic capture). When
   /// present, playback plays this real file instead of demo audio.
   final String? recordedFilePath;
+
+  /// Server media asset id of the original audio (remote mode). Playback
+  /// resolves a presigned URL through the backend on demand.
+  final String? mediaAssetId;
+
+  /// Server media asset id of the synthesized translated-speech variant
+  /// (remote mode, when TTS produced one for this viewer's language).
+  final String? speechAssetId;
 
   VoicePayload copyWith({
     VoiceStage? stage,

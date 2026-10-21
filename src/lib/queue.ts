@@ -25,6 +25,10 @@ import {
 import { newId } from "@/lib/ids";
 import { detectLanguageByPhrase } from "@/lib/i18n/phrasebook";
 import { translateText } from "@/lib/providers/translation";
+import { transcribeAudio, sttConfigured } from "@/lib/providers/stt";
+import { synthesizeSpeech, ttsSupportedFor } from "@/lib/providers/tts";
+import { getObjectBytes, mediaKeys, storeObject } from "@/lib/storage";
+import { mediaAssets } from "@/db/schema";
 
 const MAX_ATTEMPTS = 3;
 
@@ -323,12 +327,24 @@ export async function enqueueVoiceJobs(messageId: string): Promise<void> {
   const transcript = content?.originalText?.trim() ?? "";
 
   if (!transcript) {
-    // Low-confidence / missing transcription: original audio stays playable.
+    // No transcript yet: schedule real speech-to-text on the uploaded audio.
+    // When no STT provider is configured, fail honestly — the original audio
+    // remains playable either way.
+    if (!sttConfigured()) {
+      await setVoiceJob(messageId, "*", {
+        status: "failed_retryable",
+        detail:
+          "Transcription pending — configure an STT provider (Cloudflare Workers AI or Groq) to enable the voice pipeline",
+        attempts: 1,
+      });
+      return;
+    }
     await setVoiceJob(messageId, "*", {
-      status: "partial",
-      detail: "Transcription unavailable — original audio preserved",
+      status: "transcribing",
+      detail: "transcribing recorded audio",
       attempts: 1,
     });
+    schedule(() => runSttThenEnqueue(messageId), 400 + Math.random() * 600);
     return;
   }
 
@@ -345,6 +361,86 @@ export async function enqueueVoiceJobs(messageId: string): Promise<void> {
   for (const target of targets) {
     await setVoiceJob(messageId, target, { status: "queued", detail: "voice pipeline queued", attempts: 1 });
     schedule(() => runVoicePipeline(messageId, target, msg.version), 300 + Math.random() * 600);
+  }
+}
+
+/**
+ * Stage 1 of the voice pipeline for clips without a client-provided
+ * transcript: load the stored audio, run STT, persist the transcript, then
+ * fan the message out to each recipient language exactly like a text message.
+ */
+async function runSttThenEnqueue(messageId: string): Promise<void> {
+  const retryable = async (detail: string) => {
+    await setVoiceJob(messageId, "*", { status: "failed_retryable", detail });
+  };
+
+  try {
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+    if (!msg || msg.deletedAt || msg.type !== "voice" || !msg.mediaAssetId) {
+      await retryable("voice message has no audio asset");
+      return;
+    }
+    const [asset] = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, msg.mediaAssetId))
+      .limit(1);
+    if (!asset) {
+      await retryable("audio asset missing");
+      return;
+    }
+
+    let bytes: Uint8Array | null = null;
+    if (asset.storageKey) {
+      bytes = await getObjectBytes(asset.storageKey);
+    } else if (asset.dataBase64) {
+      bytes = new Uint8Array(Buffer.from(asset.dataBase64, "base64"));
+    }
+    if (!bytes || bytes.byteLength === 0) {
+      await retryable("audio bytes unavailable");
+      return;
+    }
+
+    const result = await transcribeAudio(bytes, {
+      mimeType: asset.mimeType,
+      languageHint: msg.sourceLanguage,
+    });
+
+    const [existingContent] = await db
+      .select()
+      .from(messageContents)
+      .where(eq(messageContents.messageId, messageId))
+      .limit(1);
+    if (existingContent) {
+      await db
+        .update(messageContents)
+        .set({ originalText: result.transcript })
+        .where(eq(messageContents.messageId, messageId));
+    } else {
+      await db.insert(messageContents).values({ messageId, originalText: result.transcript });
+    }
+
+    await setVoiceJob(messageId, "*", {
+      status: "queued",
+      detail: `transcribed via ${result.provider}`,
+    });
+
+    const targets = await planTargetLanguages(msg.conversationId, msg.sourceLanguage);
+    if (targets.length === 0) {
+      await setVoiceJob(messageId, msg.sourceLanguage, {
+        status: "completed",
+        detail: "Transcribed — all members share the source language",
+        attempts: 1,
+      });
+      return;
+    }
+    for (const target of targets) {
+      await setVoiceJob(messageId, target, { status: "queued", detail: "voice pipeline queued" });
+      schedule(() => runVoicePipeline(messageId, target, msg.version), 300 + Math.random() * 600);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "transcription failed";
+    await retryable(message.slice(0, 220));
   }
 }
 
@@ -393,13 +489,91 @@ async function runVoicePipeline(messageId: string, target: string, sourceVersion
 
   await setVoiceJob(messageId, target, {
     status: "synthesizing",
-    detail: "target-language speech staged",
+    detail: "generating target-language speech",
   });
-  await sleep(350 + Math.random() * 450);
-  await setVoiceJob(messageId, target, {
-    status: "completed",
-    detail: "Speech synthesized on-device at playback (Web Speech API)",
-  });
+
+  /* Real TTS via Workers AI melotts for covered languages. A speech failure
+     never erases the completed translation: the job completes text-only with
+     an honest detail, and the recipient keeps "text + original audio". */
+  if (!ttsSupportedFor(target)) {
+    await setVoiceJob(messageId, target, {
+      status: "completed",
+      detail: `Translation ready — spoken variant not available for ${target} (demo)`,
+    });
+    return;
+  }
+
+  try {
+    const [translatedRow] = await db
+      .select()
+      .from(messageTranslations)
+      .where(
+        and(
+          eq(messageTranslations.messageId, messageId),
+          eq(messageTranslations.targetLanguage, target),
+          eq(messageTranslations.sourceVersion, sourceVersion),
+        ),
+      )
+      .limit(1);
+    const spokenText = translatedRow?.translatedText?.trim();
+    if (!spokenText) {
+      await setVoiceJob(messageId, target, {
+        status: "completed",
+        detail: "Translation ready — no speakable text",
+      });
+      return;
+    }
+
+    // Cache: reuse an existing identical variant for this message+language.
+    const [existingJob] = await db
+      .select()
+      .from(voiceJobs)
+      .where(and(eq(voiceJobs.messageId, messageId), eq(voiceJobs.targetLanguage, target)))
+      .limit(1);
+    if (existingJob?.outputMediaId) {
+      await setVoiceJob(messageId, target, {
+        status: "completed",
+        detail: "Translated speech ready",
+      });
+      return;
+    }
+
+    const speech = await synthesizeSpeech(spokenText, target);
+    const assetId = newId("med");
+    const stored = await storeObject(
+      mediaKeys.ttsVariant(messageId, target),
+      speech.bytes,
+      speech.mimeType,
+    );
+
+    await db.insert(mediaAssets).values({
+      id: assetId,
+      ownerId: msg.senderId,
+      kind: "tts",
+      mimeType: speech.mimeType,
+      sizeBytes: speech.bytes.byteLength,
+      durationMs: null,
+      storageKey: stored?.storageKey ?? null,
+      dataBase64: stored ? null : Buffer.from(speech.bytes).toString("base64"),
+    });
+    await db
+      .update(voiceJobs)
+      .set({ outputMediaId: assetId, updatedAt: new Date() })
+      .where(
+        and(eq(voiceJobs.messageId, messageId), eq(voiceJobs.targetLanguage, target)),
+      );
+
+    await setVoiceJob(messageId, target, {
+      status: "completed",
+      detail: `Translated speech ready via ${speech.provider}`,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "speech generation failed";
+    await setVoiceJob(messageId, target, {
+      status: "completed",
+      detail: `Translation ready — spoken variant unavailable (${message.slice(0, 120)})`,
+    });
+  }
 }
 
 function sleep(ms: number): Promise<void> {

@@ -34,6 +34,18 @@ Key behaviour implemented client-side:
 
 ## Development
 
+### Backend (live API)
+
+```bash
+cp .env.example .env      # add R2 / Groq / Cloudflare AI keys — every feature is env-gated
+npm install
+npx drizzle-kit push      # create/patch schema (needs DATABASE_URL running)
+npm run dev               # Next.js API on http://localhost:3000
+./scripts/smoke.sh        # register → converse → translations → voice pipeline
+```
+
+### Flutter app — demo mode (default, zero config)
+
 ```bash
 cd unicom_app
 flutter pub get
@@ -42,8 +54,37 @@ flutter test           # 46 tests: routing, voice pipeline, responsive matrix
 flutter analyze
 ```
 
-The mobile client currently runs on an in-memory demo backend (`MockBackend`) that simulates the
-translation/voice pipeline; wiring to the `src/` API is the next integration step.
+Runs on the in-memory demo backend (`MockBackend`) that simulates MT/STT/TTS.
+
+### Flutter app — LIVE mode (real API)
+
+```bash
+# Android emulator (10.0.2.2 = host loopback). Use LAN IP on physical devices.
+flutter run --dart-define=UNICOM_BASE_URL=http://10.0.2.2:3000
+```
+
+In live mode: real register/login (cookie session), real conversations and
+messages, per-recipient translations from the server, **actual recorded m4a
+uploads** to the API (R2 when configured) and playback via short-lived
+presigned URLs. Voice notes recorded with the mic go through the real
+pipeline: Whisper transcribes → per-recipient MT → MeloTTS speaks the
+translation when the target language is covered.
+
+#### What activates with which key (`backend/.env`)
+
+| Key | Enables |
+| --- | --- |
+| `GROQ_API_KEY` | High-quality LLM translation (prepended to the free chain) + alternate STT |
+| `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_AI_API_TOKEN` | Whisper STT + MeloTTS translated speech |
+| `R2_*` (4 values) | Private object storage for voice notes/avatars (demo falls back to Postgres bytes) |
+
+No STT provider configured → voice jobs report `failed_retryable` with an
+honest message (original audio stays playable) — never fake success.
+
+#### Known gaps in live mode (documented, intentional)
+- WebSockets: client polls `/api/sync` (1.2s summaries, 2.5s focused-chat) — the documented WS upgrade is pending.
+- Polls are demo-mode only (no API contract yet).
+- Avatar upload UI ships with the endpoint; wiring the settings picker is a fast-follow.
 
 ## Status
 

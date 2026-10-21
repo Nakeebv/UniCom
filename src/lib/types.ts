@@ -5,6 +5,7 @@ export type PublicUser = {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarUrl: string | null;
   preferredLanguage: string;
   online: boolean;
   lastSeenAt: string | null;
@@ -15,6 +16,7 @@ export type Me = {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarUrl: string | null;
   bio: string | null;
   isPersona: boolean;
   preferredLanguage: string;
@@ -28,6 +30,7 @@ export type Contact = {
   username: string;
   displayName: string;
   avatarHue: number;
+  avatarUrl: string | null;
   bio: string | null;
   isPersona: boolean;
   preferredLanguage: string;
@@ -46,7 +49,11 @@ export type TranslationView = {
   sourceVersion: number;
 };
 
-export type VoiceJobView = { status: string; detail: string | null };
+export type VoiceJobView = {
+  status: string;
+  detail: string | null;
+  speech_media_id: string | null;
+};
 
 export type MessageView = {
   id: string;
