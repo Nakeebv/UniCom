@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 /** Permissive CORS for the API so the Flutter web build (any origin) can
  *  call it during development. Same-origin production copies need none. */
 export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/app")) return noStore(request);
   if (request.method === "OPTIONS") {
     return new NextResponse(null, {
       status: 204,
@@ -25,5 +26,17 @@ function corsHeaders(): Record<string, string> {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/api/:path*", "/app/:path*", "/app"],
 };
+
+/** Fresh JS for the Flutter web target on every load — stale bootstrap is
+ *  the classic white-screen / rolling-spinner source on mobile browsers. */
+export function noStore(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/app")) {
+    const res = NextResponse.next();
+    res.headers.set("cache-control", "no-store, must-revalidate");
+    res.headers.set("x-app-build", new Date().toISOString());
+    return res;
+  }
+  return NextResponse.next();
+}
