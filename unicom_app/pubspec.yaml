@@ -26,7 +26,7 @@ dependencies:
 
   # Real microphone capture (iOS/Android). Web uses a graceful fallback:
   # the `record` package has no web implementation.
-  record: ^5.1.2
+  record: 5.1.2
 
   # Real audio playback for voice notes (federated web support included).
   just_audio: ^0.10.0
@@ -34,6 +34,8 @@ dependencies:
   # Microphone permission flow (denied / permanently-denied handling).
   permission_handler: ^12.0.0
   http: ^1.6.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -54,3 +56,7 @@ flutter:
 
   assets:
     - assets/images/avatars/
+
+dependency_overrides:
+  record_linux: ^1.2.1
+  record_platform_interface: 1.6.0
