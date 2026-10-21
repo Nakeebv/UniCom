@@ -72,6 +72,19 @@ flutter analyze
 
 Runs on the in-memory demo backend (`MockBackend`) that simulates MT/STT/TTS.
 
+### Run it from anywhere via Cloudflare edge (test tunnel)
+
+```bash
+npm run tunnel            # prints a public https://*.trycloudflare.com URL
+# keep `npm run dev` running, then point any device at the printed URL:
+# flutter run --dart-define=UNICOM_BASE_URL=https://<name>.trycloudflare.com
+```
+
+Quick-tunnel URLs are ephemeral (rename per restart). For a stable hostname:
+`cloudflared tunnel login` → named tunnel routed to :3000. For a full
+Workers deployment, Postgres must move to a cloud provider (e.g. Neon) +
+Hyperdrive — the local PG is not reachable from Workers.
+
 ### Flutter app — LIVE mode (real API)
 
 ```bash

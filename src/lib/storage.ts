@@ -56,11 +56,16 @@ export async function storeObject(
   return { storageKey: key };
 }
 
-/** Signed GET URL for private playback. Throws when R2 is not configured. */
+/**
+ * Signed GET URL for private playback. Throws when R2 is not configured.
+ * X-Amz-Expires must be part of the canonical query BEFORE signing —
+ * appending it afterwards invalidates the SigV4 signature.
+ */
 export async function presignGetUrl(key: string, ttlSeconds = 120): Promise<string> {
-  const signed = await client().sign(new Request(endpoint(key)), {
-    aws: { signQuery: true },
-  });
+  const signed = await client().sign(
+    new Request(endpoint(key, `X-Amz-Expires=${ttlSeconds}`)),
+    { aws: { signQuery: true } },
+  );
   const url = new URL(signed.url);
   url.searchParams.set("X-Amz-Expires", String(ttlSeconds));
   return url.toString();
@@ -82,7 +87,7 @@ export async function deleteObject(key: string): Promise<void> {
 
 export const mediaKeys = {
   voiceNote: (assetId: string, ext: string) => `voice/${assetId}.${ext}`,
-  ttsVariant: (messageId: string, lang: string) => `tts/${messageId}.${lang}.mp3`,
+  ttsVariant: (messageId: string, lang: string, ext = 'wav') => `tts/${messageId}.${lang}.${ext}`,
   avatar: (userId: string, ext: string) => `avatars/${userId}.${ext}`,
 } as const;
 

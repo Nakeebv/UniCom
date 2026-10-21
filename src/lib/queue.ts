@@ -541,7 +541,11 @@ async function runVoicePipeline(messageId: string, target: string, sourceVersion
     const speech = await synthesizeSpeech(spokenText, target);
     const assetId = newId("med");
     const stored = await storeObject(
-      mediaKeys.ttsVariant(messageId, target),
+      mediaKeys.ttsVariant(
+        messageId,
+        target,
+        speech.mimeType.includes('wav') ? 'wav' : 'mp3',
+      ),
       speech.bytes,
       speech.mimeType,
     );
