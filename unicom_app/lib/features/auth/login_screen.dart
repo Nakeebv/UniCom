@@ -34,7 +34,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     setState(() => _loading = true);
     final backend = ref.read(backendProvider);
-    await backend.signIn(_email.text.trim());
+    try {
+      await backend.signIn(_email.text.trim());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+      ));
+      return;
+    }
     if (!mounted) return;
     if (backend.onboarded) {
       backend.ensureSeeded();
