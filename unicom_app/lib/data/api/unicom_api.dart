@@ -141,6 +141,17 @@ class UniComApi {
     return list.whereType<Map<String, dynamic>>().toList();
   }
 
+  Future<Map<String, dynamic>> messagesBefore(
+    String conversationId,
+    String beforeIso,
+  ) async {
+    final data = await session.get(
+      '/api/conversations/$conversationId/messages',
+      {'before': beforeIso},
+    );
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
   Future<void> markRead(String conversationId) {
     return (session.post('/api/conversations/$conversationId/read')
         as Future<void>);

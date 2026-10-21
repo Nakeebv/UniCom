@@ -723,7 +723,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   dense: true,
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    context.go('/settings/profile');
+                    context.push('/settings/profile');
                   },
                   leading: CircleAvatar(
                     radius: 18,
@@ -875,7 +875,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   label: 'Translation preferences',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    context.go('/settings/language');
+                    context.push('/settings/language');
                   },
                 ),
                 _SheetRow(
@@ -883,7 +883,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   label: 'Speech & voice settings',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    context.go('/settings/voice');
+                    context.push('/settings/voice');
                   },
                 ),
                 if (backend.isBlocked(other))

@@ -157,6 +157,7 @@ class MockBackend extends UniBackend {
     preferOriginalAudio = prefs!.getBool('pref.preferOriginalAudio') ?? false;
     playbackRate = prefs!.getDouble('pref.playbackRate') ?? 1.0;
     _blockedIds.addAll(prefs!.getStringList('safety.blocked') ?? []);
+    ready = true;
     notifyListeners();
   }
 

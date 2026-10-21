@@ -212,7 +212,7 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
           ),
           const SizedBox(width: 4),
           GestureDetector(
-            onTap: () => context.go('/settings/profile'),
+            onTap: () => context.push('/settings/profile'),
             child: UserAvatar(
               name: me.name,
               gradient: me.gradient,

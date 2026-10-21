@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull, ne, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, isNull, ne, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   conversationMembers,
@@ -236,14 +236,17 @@ export async function loadRecentMessages(
   conversationId: string,
   viewerLanguage: string,
   limit = 80,
+  before?: Date,
 ): Promise<MessageView[]> {
+  const conditions: SQL[] = [eq(messages.conversationId, conversationId)];
+  if (before) conditions.push(lt(messages.createdAt, before));
   const rows = await db
     .select()
     .from(messages)
-    .where(eq(messages.conversationId, conversationId))
-    .orderBy(asc(messages.createdAt))
-    .limit(limit * 3);
-  const recent = rows.slice(-limit);
+    .where(and(...conditions))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit);
+  const recent = rows.reverse();
   return hydrateMessages(recent, viewerLanguage);
 }
 

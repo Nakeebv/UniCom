@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -20,8 +21,14 @@ Future<void> main() async {
   }
 
   final container = ProviderContainer();
-  // Warm the demo backend (restores persisted profile + settings).
-  await container.read(backendProvider).load();
+  // Warm the backend without blocking first paint (WhatsApp-like cold
+  // start): splash navigates once [UniBackend.onboarded]/routes settle.
+  unawaited(
+    container
+        .read(backendProvider)
+        .load()
+        .timeout(const Duration(seconds: 6), onTimeout: () {}),
+  );
 
   runApp(
     UncontrolledProviderScope(container: container, child: const UniComApp()),

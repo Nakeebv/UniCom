@@ -29,19 +29,19 @@ class SettingsScreen extends ConsumerWidget {
         icon: Icons.mic_rounded,
         title: 'Speech & Voice',
         subtitle: 'Preview voice notes in your language',
-        onTap: () => context.go('/settings/voice'),
+        onTap: () => context.push('/settings/voice'),
       ),
       _RowSpec(
         icon: Icons.lock_person_rounded,
         title: 'Privacy & Safety',
         subtitle: 'Receipts · last seen · typing preview',
-        onTap: () => context.go('/settings/privacy'),
+        onTap: () => context.push('/settings/privacy'),
       ),
       _RowSpec(
         icon: Icons.block_rounded,
         title: 'Blocked Users',
         value: '${blockedCount(backend)}',
-        onTap: () => context.go('/settings/privacy'),
+        onTap: () => context.push('/settings/privacy'),
       ),
       _RowSpec(
         icon: Icons.list_alt_rounded,
@@ -75,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
               // Profile header row
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => context.go('/settings/profile'),
+                onTap: () => context.push('/settings/profile'),
                 child: Row(
                   children: [
                     UserAvatar(
@@ -127,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.g_translate_rounded,
                 title: 'Messages arrive in',
                 value: '${lang.flag}  ${lang.nativeName}',
-                onTap: () => context.go('/settings/language'),
+                onTap: () => context.push('/settings/language'),
               ),
               _TileRow(
                 icon: Icons.graphic_eq_rounded,
@@ -135,7 +135,7 @@ class SettingsScreen extends ConsumerWidget {
                 value:
                     '${LanguageRegistry.of(me.speechLanguageCode ?? me.languageCode).flag}  '
                     '${LanguageRegistry.of(me.speechLanguageCode ?? me.languageCode).nativeName}',
-                onTap: () => context.go('/settings/language'),
+                onTap: () => context.push('/settings/language'),
               ),
               _TileRow(
                 icon: Icons.record_voice_over_rounded,
@@ -146,7 +146,7 @@ class SettingsScreen extends ConsumerWidget {
                         .map((v) => v.name)
                         .firstOrNull ??
                     'Aria',
-                onTap: () => context.go('/settings/voice'),
+                onTap: () => context.push('/settings/voice'),
               ),
               const SizedBox(height: 6),
               // Theme picker

@@ -27,13 +27,17 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const { id } = await params;
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!(await isMember(id, me.id))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const views = await loadRecentMessages(id, me.preferredLanguage, 80);
+  const beforeParam = new URL(request.url).searchParams.get("before");
+  const before = beforeParam && !Number.isNaN(Date.parse(beforeParam)) ? new Date(beforeParam) : undefined;
+  const views = await loadRecentMessages(id, me.preferredLanguage, 50, before);
+  const oldest = views.length > 0 ? views[0].createdAt : null;
+  const hasMore = views.length === 50;
 
   // Lazy, on-demand translation for messages the reader's language needs.
   await Promise.all(
@@ -43,7 +47,7 @@ export async function GET(_request: Request, { params }: Params) {
       .map((v) => ensureTranslationForReader(v.id, me.preferredLanguage).catch(() => {})),
   );
 
-  return NextResponse.json({ messages: views, now: new Date().toISOString() });
+  return NextResponse.json({ messages: views, now: new Date().toISOString(), has_more: hasMore, oldest_at: oldest });
 }
 
 export async function POST(request: Request, { params }: Params) {

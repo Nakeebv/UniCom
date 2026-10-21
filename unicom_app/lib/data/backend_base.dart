@@ -20,6 +20,8 @@ export 'models/language.dart' show LanguageRegistry, LanguageInfo;
 /// votes simulation) stay in the mock implementation; the remote backend is
 /// expected to answer with the authoritative server state.
 abstract class UniBackend extends ChangeNotifier {
+  /// True once [load] finished (success or handled failure).
+  bool ready = false;
   // ── Session ──────────────────────────────────────────────────────────────
   UserProfile? get me;
   bool get isSignedIn;

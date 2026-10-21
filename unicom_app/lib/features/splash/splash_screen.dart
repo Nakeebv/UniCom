@@ -17,7 +17,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 1750), () {
+    _waitReady();
+  }
+
+  Future<void> _waitReady() async {
+    final backend = ref.read(backendProvider);
+    final limit = DateTime.now().add(const Duration(seconds: 6));
+    while (!backend.ready && DateTime.now().isBefore(limit)) {
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      ref.read(backendProvider);
+    }
+    if (!mounted) return;
+
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
       if (!mounted) return;
       final backend = ref.read(backendProvider);
       if (!backend.isSignedIn) {

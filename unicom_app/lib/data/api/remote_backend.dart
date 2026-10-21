@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart' show ThemeMode;
@@ -20,6 +22,7 @@ import 'unicom_api.dart';
 /// WebSockets are the documented production upgrade. Message history is
 /// capped at the API's recent-80 window per conversation.
 class RemoteBackend extends UniBackend {
+  final Map<String, bool> _hasMore = {};
   RemoteBackend({required String baseUrl})
     : api = UniComApi(UniSession(baseUrl: baseUrl));
 
@@ -70,6 +73,7 @@ class RemoteBackend extends UniBackend {
     await _refreshDirectory();
     await _refreshSummaries();
     _startTimers();
+    ready = true;
     notifyListeners();
   }
 
@@ -105,9 +109,69 @@ class RemoteBackend extends UniBackend {
   Future<void> _safeMessageRefresh() async {
     if (_me == null || _disposed || _activeConversation == null) return;
     try {
-      await fetchMessages(_activeConversation!);
+      await fetchChanged(_activeConversation!);
     } catch (_) {}
   }
+
+  /// Cheap incremental refresh: server diff since the newest stored message.
+  Future<void> fetchChanged(String conversationId) async {
+    final myLang = _me?.languageCode ?? 'en';
+    final myId = _me?.id;
+    if (myId == null) return;
+    final since =
+        messagesOf(conversationId)
+            .lastWhereOrNull((m) => m.id.startsWith('msg_'))
+            ?.createdAt
+            .toUtc()
+            .toIso8601String();
+    final data = await session.get('/api/sync', {
+      'conversationId': conversationId,
+      if (since != null) 'since': since,
+    });
+    final list =
+        ((data['messages'] ?? const []) as List)
+            .whereType<Map<String, dynamic>>();
+    final map = _messages.putIfAbsent(conversationId, () => {});
+    var changed = false;
+    for (final v in list) {
+      final mapped = _mapMessage(v, myLang, myId);
+      if (mapped.text?.isNotEmpty == true || mapped.kind == MessageKind.voice) {
+        map[mapped.id] = mapped;
+        changed = true;
+      }
+      final ck = mapped.clientKey;
+      if (ck != null && map.remove('local-$ck') != null) changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// Loads one older page (scroll-to-top pagination).
+  Future<void> loadOlderMessages(String conversationId) async {
+    if (_hasMore[conversationId] == false) return;
+    final myLang = _me?.languageCode ?? 'en';
+    final myId = _me?.id;
+    if (myId == null) return;
+    final existing =
+        messagesOf(
+          conversationId,
+        ).where((m) => m.id.startsWith('msg_')).toList();
+    if (existing.isEmpty) return;
+    final before = existing.first.createdAt.toUtc().toIso8601String();
+    final data = await api.messagesBefore(conversationId, before);
+    final list =
+        ((data['messages'] ?? const []) as List)
+            .whereType<Map<String, dynamic>>();
+    final map = _messages.putIfAbsent(conversationId, () => {});
+    for (final v in list) {
+      final mapped = _mapMessage(v, myLang, myId);
+      if (map[mapped.id] == null) map[mapped.id] = mapped;
+    }
+    _hasMore[conversationId] = (data['has_more'] ?? false) as bool;
+    notifyListeners();
+  }
+
+  bool hasMoreMessages(String conversationId) =>
+      _hasMore[conversationId] ?? true;
 
   void setActiveConversation(String? conversationId) {
     _activeConversation = conversationId;
@@ -317,6 +381,7 @@ class RemoteBackend extends UniBackend {
     await _refreshDirectory();
     await _refreshSummaries();
     _startTimers();
+    ready = true;
     notifyListeners();
   }
 
@@ -525,13 +590,6 @@ class RemoteBackend extends UniBackend {
       throw StateError('Remote voice notes need a recorded file (mobile app).');
     }
     final clientId = 'ck-${DateTime.now().microsecondsSinceEpoch}';
-    final placeholder = Message(
-      id: 'uploading',
-      conversationId: 'uploading',
-      senderId: 'uploading',
-      kind: MessageKind.voice,
-      createdAt: DateTime.now(),
-    );
     unawaited(() async {
       await _withAuth(() async {
         final assetId = await api.uploadVoice(
@@ -548,7 +606,26 @@ class RemoteBackend extends UniBackend {
       await fetchMessages(conversationId);
       notifyListeners();
     }());
-    return placeholder;
+    // Optimistic local bubble — replayable from the real file while uploading.
+    final localVoice = Message(
+      id: 'local-$clientId',
+      conversationId: conversationId,
+      senderId: meUser.id,
+      kind: MessageKind.voice,
+      clientKey: clientId,
+      createdAt: DateTime.now(),
+      voice: VoicePayload(
+        jobId: clientId,
+        duration: duration,
+        waveform: waveform,
+        stage: VoiceStage.recorded,
+        recordedFilePath: filePath,
+      ),
+    );
+    (_messages.putIfAbsent(conversationId, () => {}))[localVoice.id] =
+        localVoice;
+    notifyListeners();
+    return localVoice;
   }
 
   @override
