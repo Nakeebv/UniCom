@@ -15,7 +15,6 @@ unicom_app/android/.gradle/
 node_modules/
 .next/
 out/
-drizzle/
 *.tsbuildinfo
 .DS_Store
 .env

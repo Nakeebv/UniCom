@@ -81,7 +81,7 @@ export const groq = {
     return Boolean(env("GROQ_API_KEY"));
   },
   get mtModel() {
-    return env("GROQ_MT_MODEL") ?? "llama-3.3-70b-versatile";
+    return env("GROQ_MT_MODEL") ?? "openai/gpt-oss-20b";
   },
   get baseUrl() {
     return env("GROQ_BASE_URL") ?? "https://api.groq.com/openai/v1";

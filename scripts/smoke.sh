@@ -30,7 +30,7 @@ curl -fsS -c "$JAR2" -H 'content-type: application/json' \
 say "Login session check (/api/me) + contacts"
 curl -fsS -b "$JAR" "$BASE/api/me" | head -c 200; echo
 # Make the peer speak Spanish so per-recipient routing is observable.
-curl -fsS -b "$JAR2" -H 'content-type: application/json' \
+curl -fsS -X PATCH -b "$JAR2" -H 'content-type: application/json' \
   -d '{"preferredLanguage":"es","speechLanguage":"es"}' "$BASE/api/me" >/dev/null
 curl -fsS -b "$JAR" "$BASE/api/contacts" | head -c 200; echo
 

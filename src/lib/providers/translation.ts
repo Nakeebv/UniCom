@@ -133,7 +133,7 @@ const groqMt: Provider | null = buildGroqMt();
 function buildGroqMt(): Provider | null {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
-  const model = process.env.GROQ_MT_MODEL?.trim() || "llama-3.3-70b-versatile";
+  const model = process.env.GROQ_MT_MODEL?.trim() || "openai/gpt-oss-20b";
   const baseUrl = process.env.GROQ_BASE_URL?.trim() || "https://api.groq.com/openai/v1";
 
   return {

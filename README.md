@@ -39,9 +39,25 @@ Key behaviour implemented client-side:
 ```bash
 cp .env.example .env      # add R2 / Groq / Cloudflare AI keys — every feature is env-gated
 npm install
-npx drizzle-kit push      # create/patch schema (needs DATABASE_URL running)
+npx drizzle-kit generate  # emits SQL into drizzle/ (schema changes)
+psql "$DATABASE_URL" -f drizzle/0000_hot_hardball.sql   # apply (or drizzle-kit push in a TTY)
 npm run dev               # Next.js API on http://localhost:3000
 ./scripts/smoke.sh        # register → converse → translations → voice pipeline
+```
+
+> **Use a dedicated database** (e.g. `unicom`) — `app_db` environments that
+> already contain other projects will collide on table names like `messages`.
+
+Verified live configuration (2026-10): Whisper STT transcribes real speech;
+Groq `openai/gpt-oss-20b` LLM translation; MeloTTS generates Spanish speech
+variants stored in R2; playback via presigned URLs.
+
+**R2 CORS** (browser-preview audio only; mobile exempt) — the object-scope
+token cannot edit bucket config, so set it once in Dashboard → R2 →
+`unicom-media` → Settings → CORS policy:
+
+```json
+[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"MaxAgeSeconds":3600}]
 ```
 
 ### Flutter app — demo mode (default, zero config)

@@ -51,7 +51,7 @@ export async function synthesizeSpeech(
           authorization: `Bearer ${cfAi.apiToken}`,
           "content-type": "application/json",
         },
-        body: JSON.stringify({ text: text.slice(0, 1200), lang: languageCode }),
+        body: JSON.stringify({ prompt: text.slice(0, 1200), lang: languageCode }),
         signal: controller.signal,
       },
     );
@@ -65,16 +65,27 @@ export async function synthesizeSpeech(
     throw new TtsError("melotts", `http ${res.status}`);
   }
   const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("audio/")) {
-    // CF wraps failures in JSON with success:false — surface honestly.
-    const body = await res.text().catch(() => "");
-    throw new TtsError("melotts", `unexpected response (${contentType}) ${body.slice(0, 120)}`);
+  if (!contentType.includes("application/json")) {
+    // Direct audio bytes (older gateway behavior).
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength < 512) {
+      throw new TtsError("melotts", "suspiciously small audio payload");
+    }
+    return { bytes, mimeType: "audio/wav", provider: `workers-ai:${model}` };
   }
-  const bytes = new Uint8Array(await res.arrayBuffer());
+  // Current API shape: { result: { audio: <base64 WAV/MP3> } }.
+  const data = (await res.json().catch(() => null)) as
+    | { result?: { audio?: string } }
+    | null;
+  const b64 = data?.result?.audio;
+  if (!b64) throw new TtsError("melotts", "response missing result.audio");
+  const bytes = new Uint8Array(Buffer.from(b64, "base64"));
   if (bytes.byteLength < 512) {
     throw new TtsError("melotts", "suspiciously small audio payload");
   }
-  return { bytes, mimeType: contentType.split(";")[0], provider: `workers-ai:${model}` };
+  // Payload is a RIFF/WAVE container per the model card.
+  const mime = bytes[0] === 0x52 && bytes[1] === 0x49 ? "audio/wav" : "audio/mpeg";
+  return { bytes, mimeType: mime, provider: `workers-ai:${model}` };
 }
 
 /* Language-code mapping note: UniCom stores ISO-639-1 codes; melotts accepts
