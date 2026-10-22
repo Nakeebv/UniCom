@@ -29,7 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   bool get _valid =>
-      RegExp(r'.+@.+\..+').hasMatch(_email.text) && _password.text.isNotEmpty;
+      _email.text.trim().length >= 3 && _password.text.isNotEmpty;
 
   /// Google OAuth is wired to the backend endpoint; when the server has no
   /// Google credentials configured it returns 503 and we say so honestly.
@@ -183,9 +183,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 14),
               TextField(
                 controller: _email,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.text,
                 onChanged: (_) => setState(() {}),
-                decoration: underline('Your Email'),
+                decoration: underline('Username'),
               ),
               const SizedBox(height: 18),
               TextField(
