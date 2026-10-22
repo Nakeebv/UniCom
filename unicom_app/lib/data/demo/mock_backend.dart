@@ -191,6 +191,7 @@ class MockBackend extends UniBackend {
   Future<void> register({
     required String name,
     required String username,
+    String? password,
   }) async {
     me = UserProfile(
       id: newId('usr'),
@@ -204,7 +205,7 @@ class MockBackend extends UniBackend {
     notifyListeners();
   }
 
-  Future<void> signIn(String email) async {
+  Future<void> signIn(String email, {String? password}) async {
     if (me == null) {
       final guessed = email
           .split('@')

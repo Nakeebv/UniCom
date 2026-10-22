@@ -57,6 +57,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         .register(
           name: _name.text.trim(),
           username: _username.text.trim().toLowerCase(),
+          password: _password.text,
         );
     if (!mounted) return;
     context.go('/auth/verify');

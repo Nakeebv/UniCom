@@ -27,8 +27,12 @@ abstract class UniBackend extends ChangeNotifier {
   bool get isSignedIn;
   bool get onboarded;
   Future<void> load();
-  Future<void> register({required String name, required String username});
-  Future<void> signIn(String emailOrUsername);
+  Future<void> register({
+    required String name,
+    required String username,
+    String? password,
+  });
+  Future<void> signIn(String emailOrUsername, {String? password});
   Future<void> signOut();
 
   // ── Directory ────────────────────────────────────────────────────────────

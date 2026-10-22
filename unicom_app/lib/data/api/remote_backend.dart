@@ -432,18 +432,36 @@ class RemoteBackend extends UniBackend {
   @override
   bool get onboarded => _me != null && (_prefLanguage?.isNotEmpty ?? false);
 
+  /// One shared demo credential for app-managed accounts. It MUST be a
+  /// constant (never `String.hashCode`): Dart hashing differs between the web
+  /// and native runtimes and across launches, which previously made login
+  /// never match what register stored.
+  static const _demoPassword = 'unicom-live-demo';
+
+  /// Same normalization register and login share, so a username entered
+  /// either way resolves to the identical account. Mirrors the server rules
+  /// (lowercase a–z0–9_, 3–24 chars).
+  String _normalizeUsername(String raw) {
+    final cleaned = raw
+        .split('@')
+        .first
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+    final padded = cleaned.padRight(3, '0');
+    return padded.length > 24 ? padded.substring(0, 24) : padded;
+  }
+
   @override
   Future<void> register({
     required String name,
     required String username,
+    String? password,
   }) async {
-    // The API generates the password here; the demo UI collects one, so we
-    // derive a stable one for the live test (documented in the runbook).
-    final password = 'unicom-${username.hashCode.abs()}-live';
     await api.register(
-      username: username,
+      username: _normalizeUsername(username),
       displayName: name,
-      password: password,
+      password:
+          (password != null && password.length >= 8) ? password : _demoPassword,
       preferredLanguage: 'en',
     );
     _me = _mapMe(await api.me() ?? <String, dynamic>{});
@@ -451,11 +469,11 @@ class RemoteBackend extends UniBackend {
   }
 
   @override
-  Future<void> signIn(String emailOrUsername) async {
-    final username = emailOrUsername.split('@').first.toLowerCase();
+  Future<void> signIn(String emailOrUsername, {String? password}) async {
     await api.login(
-      username: username,
-      password: 'unicom-${username.hashCode.abs()}-live',
+      username: _normalizeUsername(emailOrUsername),
+      password:
+          (password != null && password.isNotEmpty) ? password : _demoPassword,
     );
     _me = _mapMe(await api.me() ?? <String, dynamic>{});
     await _refreshDirectory();

@@ -36,7 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final backend = ref.read(backendProvider);
     try {
       await backend
-          .signIn(_email.text.trim())
+          .signIn(_email.text.trim(), password: _password.text)
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       if (!mounted) return;
