@@ -370,14 +370,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       actions: [
         IconButton(
-          onPressed:
-              () => context.push(
-                '/call/incoming/${isGroup ? other.id : other.id}',
-              ),
+          onPressed: () => context.push('/call/live/${other.id}'),
           icon: const Icon(Icons.phone_outlined, size: 22),
         ),
         IconButton(
-          onPressed: () => context.push('/call/live/${conv.id}'),
+          onPressed: () => context.push('/call/live/${other.id}?video=1'),
           icon: const Icon(Icons.videocam_outlined, size: 22),
         ),
         IconButton(

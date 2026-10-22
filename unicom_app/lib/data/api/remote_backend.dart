@@ -456,6 +456,7 @@ class RemoteBackend extends UniBackend {
     required String name,
     required String username,
     String? password,
+    String? email,
   }) async {
     await api.register(
       username: _normalizeUsername(username),
@@ -463,6 +464,7 @@ class RemoteBackend extends UniBackend {
       password:
           (password != null && password.length >= 8) ? password : _demoPassword,
       preferredLanguage: 'en',
+      email: email,
     );
     _me = _mapMe(await api.me() ?? <String, dynamic>{});
     notifyListeners();

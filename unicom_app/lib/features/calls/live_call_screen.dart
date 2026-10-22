@@ -1,15 +1,16 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
 
+import '../../core/call_session.dart';
 import '../../core/theme/palette.dart';
-import '../../data/backend_base.dart';
 import '../../providers.dart';
-import '../../shared/widgets/sheets.dart';
+import '../../shared/widgets/ui_kit.dart';
 
-/// Live call — Chatbox kit: deep purple gradient, translucent controls,
-/// timer counting up, translation status chip, PiP self-view, end-call red.
+/// Live 1:1 call — connects to a real LiveKit room using a server-minted,
+/// room-scoped token. Shows connecting → connected (with real remote video)
+/// → reconnecting / ended / failed. Every control performs its real action.
 class LiveCallScreen extends ConsumerStatefulWidget {
   const LiveCallScreen({super.key});
 
@@ -18,231 +19,101 @@ class LiveCallScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
-  Timer? _clock;
-  Duration _elapsed = Duration.zero;
-  bool _muted = false;
-  bool _speakerOn = true;
+  CallSession? _session;
+  String? _room;
 
   @override
-  void initState() {
-    super.initState();
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final state = GoRouterState.of(context);
+    final peerId = state.pathParameters['id'] ?? '';
+    final isVideo = state.uri.queryParameters['video'] == '1';
+    if (_session != null) return;
+    final backend = ref.read(backendProvider);
+    final remote = backend.asRemote;
+    if (remote == null) {
+      // Offline demo mode: no server to mint tokens — honest message.
+      return;
+    }
+    _room = 'call_${DateTime.now().millisecondsSinceEpoch}_$peerId';
+    final session = CallSession(
+      api: remote.api,
+      room: _room!,
+      isVideo: isVideo,
+    );
+    _session = session;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) session.connect(peerId: peerId);
     });
   }
 
   @override
   void dispose() {
-    _clock?.cancel();
+    _session?.dispose();
     super.dispose();
-  }
-
-  String _peerName(UniBackend backend) {
-    final me = backend.me?.name ?? 'You';
-    return me;
   }
 
   @override
   Widget build(BuildContext context) {
-    final backend = ref.watch(backendProvider);
-    final me = backend.me;
-    final name =
-        me != null && backend.conversations.isNotEmpty
-            ? _peerName(backend)
-            : 'You';
+    final session = _session;
+    if (session == null) return _notConfigured(context);
 
+    return AnimatedBuilder(
+      animation: session,
+      builder: (context, _) {
+        switch (session.phase) {
+          case CallPhase.connecting:
+            return _statusScaffold(context, 'Connecting…');
+          case CallPhase.reconnecting:
+            return _statusScaffold(context, 'Reconnecting…');
+          case CallPhase.failed:
+            return _statusScaffold(
+              context,
+              session.error ?? 'Call failed',
+              isError: true,
+            );
+          case CallPhase.ended:
+            return _statusScaffold(context, 'Call ended');
+          case CallPhase.connected:
+            return _connected(context, session);
+        }
+      },
+    );
+  }
+
+  Widget _notConfigured(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF2E0C42), Palette.welcome2],
-            stops: [0, 1],
-          ),
-        ),
-        child: SafeArea(
-          child: Stack(
+      backgroundColor: Palette.bg,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Column(
-                children: [
-                  const SizedBox(height: 26),
-                  // Auto-translation chip
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.translate_rounded,
-                          size: 14,
-                          color: Palette.teal03,
-                        ),
-                        const SizedBox(width: 7),
-                        Text(
-                          'Live translation on — speech output in your language',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: .85),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '00:${_elapsed.inMinutes.toString().padLeft(2, '0')}:${_elapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .7),
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 18),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 9,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .07),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.graphic_eq_rounded,
-                          size: 15,
-                          color: Palette.teal03,
-                        ),
-                        SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            '🎙 Translating Amara → your language…',
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(flex: 3),
-                  // Volume slider
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 5,
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 19,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: Slider(
-                        value: .62,
-                        onChanged: (_) {},
-                        activeColor: Colors.white.withValues(alpha: .9),
-                        inactiveColor: Colors.white.withValues(alpha: .2),
-                        thumbColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  // Control cluster
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _BigRoundIcon(
-                          icon:
-                              _muted
-                                  ? Icons.mic_off_rounded
-                                  : Icons.mic_rounded,
-                          filled: _muted,
-                          onTap: () => setState(() => _muted = !_muted),
-                        ),
-                        _BigRoundIcon(
-                          icon:
-                              _speakerOn
-                                  ? Icons.volume_up_rounded
-                                  : Icons.volume_off_rounded,
-                          onTap: () => setState(() => _speakerOn = !_speakerOn),
-                        ),
-                        _BigRoundIcon(
-                          icon: Icons.videocam_rounded,
-                          onTap: () {
-                            infoToast(context, 'Switching video (demo)');
-                          },
-                        ),
-                        _BigRoundIcon(
-                          icon: Icons.call_end_rounded,
-                          filled: true,
-                          isDanger: true,
-                          onTap: () => context.pop(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 36),
-                ],
+              const Icon(
+                Icons.videocam_off_rounded,
+                size: 46,
+                color: Palette.textSecondary,
               ),
-              // PiP self-view
-              Positioned(
-                right: 20,
-                top: 24,
-                child: Container(
-                  width: 72,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: Palette.brand,
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.person_outline_rounded,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 16),
+              const Text(
+                'Calling needs the live app',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Calls connect through the UniCom server. Run the app in live '
+                'mode (--dart-define=UNICOM_BASE_URL=…) with calling configured.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
                 ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () => context.pop(),
+                child: const Text('Back'),
               ),
             ],
           ),
@@ -250,38 +121,245 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
       ),
     );
   }
-}
 
-class _BigRoundIcon extends StatelessWidget {
-  const _BigRoundIcon({
-    required this.icon,
-    required this.onTap,
-    this.filled = false,
-    this.isDanger = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool filled;
-  final bool isDanger;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          color:
-              filled
-                  ? (isDanger ? Palette.danger : Colors.white)
-                  : Colors.white.withValues(alpha: .1),
-          shape: BoxShape.circle,
+  Widget _statusScaffold(
+    BuildContext context,
+    String label, {
+    bool isError = false,
+  }) {
+    return Scaffold(
+      backgroundColor: Palette.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Spacer(),
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.wifi_tethering_rounded,
+              size: 46,
+              color: isError ? Palette.danger : Palette.iris,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 26),
+            if (!isError)
+              const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 40),
+              child: _endButton(context),
+            ),
+          ],
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
+  }
+
+  Widget _endButton(BuildContext context) => GestureDetector(
+    onTap: () async {
+      await _session?.hangUp();
+      if (context.mounted) context.pop();
+    },
+    child: Container(
+      width: 64,
+      height: 64,
+      decoration: const BoxDecoration(
+        color: Palette.danger,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 28),
+    ),
+  );
+
+  Widget _connected(BuildContext context, CallSession session) {
+    final backend = ref.read(backendProvider);
+    final peerId = GoRouterState.of(context).pathParameters['id'] ?? '';
+    final peer = backend.contactById(peerId);
+    final remote = session.remoteParticipant;
+    final remoteVideo = _videoTrack(remote);
+    final localVideo = _videoTrack(session.localParticipant);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Remote video (or avatar placeholder for audio calls).
+            Positioned.fill(
+              child:
+                  session.isVideo && remoteVideo != null
+                      ? lk.VideoTrackRenderer(remoteVideo)
+                      : _audioBackdrop(context, peer?.name ?? 'Call'),
+            ),
+            // Local preview (PiP) for video calls.
+            if (session.isVideo && localVideo != null)
+              Positioned(
+                right: 16,
+                top: 16,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    width: 110,
+                    height: 150,
+                    child: lk.VideoTrackRenderer(localVideo),
+                  ),
+                ),
+              ),
+            // Status + duration.
+            Positioned(
+              top: 18,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  Text(
+                    peer?.name ?? 'Call',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _clock(session.duration),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .8),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Controls.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 34,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _round(
+                    icon:
+                        session.micEnabled
+                            ? Icons.mic_rounded
+                            : Icons.mic_off_rounded,
+                    active: !session.micEnabled,
+                    onTap: session.toggleMic,
+                  ),
+                  const SizedBox(width: 18),
+                  if (session.isVideo) ...[
+                    _round(
+                      icon:
+                          session.camEnabled
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                      active: !session.camEnabled,
+                      onTap: session.toggleCamera,
+                    ),
+                    const SizedBox(width: 18),
+                    _round(
+                      icon: Icons.cameraswitch_rounded,
+                      onTap: session.switchCamera,
+                    ),
+                    const SizedBox(width: 18),
+                  ],
+                  _round(
+                    icon: Icons.call_end_rounded,
+                    danger: true,
+                    onTap: () async {
+                      await session.hangUp();
+                      if (context.mounted) context.pop();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  lk.VideoTrack? _videoTrack(lk.Participant? p) {
+    if (p == null) return null;
+    for (final pub in p.videoTrackPublications) {
+      final t = pub.track;
+      if (t is lk.VideoTrack) return t;
+    }
+    return null;
+  }
+
+  Widget _audioBackdrop(BuildContext context, String name) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF0E2B29), Palette.bg],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            UserAvatar(name: name, size: 120, showOnline: false),
+            const SizedBox(height: 18),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _round({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool active = false,
+    bool danger = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color:
+              danger
+                  ? Palette.danger
+                  : (active
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: .14)),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: danger ? Colors.white : (active ? Palette.bg : Colors.white),
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  String _clock(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 }

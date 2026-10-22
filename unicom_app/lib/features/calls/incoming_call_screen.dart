@@ -7,16 +7,22 @@ import '../../providers.dart';
 import '../../shared/widgets/sheets.dart';
 import '../../shared/widgets/ui_kit.dart';
 
-/// Incoming call — Chatbox kit: blurred dark teal ambience, huge avatar,
-/// "Incoming voice call", slide-to-answer pill, Remind / Message actions.
+/// Incoming call — caller identity from the peer id, accept routes to the
+/// real LiveKit call; decline/remind/message are all real actions.
 class IncomingCallScreen extends ConsumerWidget {
   const IncomingCallScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final id = GoRouterState.of(context).pathParameters['id'] ?? 'usr_amara';
+    final state = GoRouterState.of(context);
+    final id = state.pathParameters['id'] ?? '';
+    final isVideo = state.uri.queryParameters['video'] == '1';
     final backend = ref.watch(backendProvider);
-    final user = backend.contactById(id) ?? backend.contacts.first;
+
+    // Null-safe identity resolution — never assume the directory is loaded
+    // or that the id refers to a contact (it may be a conversation).
+    final user = backend.contactById(id);
+    final name = user?.name ?? 'Unknown caller';
 
     return Scaffold(
       body: Container(
@@ -24,38 +30,47 @@ class IncomingCallScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF290B3D), Palette.welcome2],
-            stops: [0, 1],
+            colors: [Color(0xFF0E2B29), Palette.bg],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               const SizedBox(height: 18),
-              const Text(
-                'UniCom translated call — you speak, they hear their language',
+              Text(
+                isVideo
+                    ? 'Incoming video call — translated live'
+                    : 'UniCom translated call — you speak, they hear theirs',
                 maxLines: 2,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .5),
+                  fontSize: 12,
+                ),
               ),
               const Spacer(flex: 3),
-              UserAvatar(
-                name: user.name,
-                gradient: user.gradient,
-                userId: user.id,
-                imageUrl: user.avatarUrl,
-                size: 128,
-                showOnline: false,
-                heroTag: 'call-avatar-${user.id}',
-              ),
+              if (user != null)
+                UserAvatar(
+                  name: user.name,
+                  gradient: user.gradient,
+                  userId: user.id,
+                  imageUrl: user.avatarUrl,
+                  size: 128,
+                  showOnline: false,
+                )
+              else
+                const Icon(
+                  Icons.person_rounded,
+                  color: Colors.white38,
+                  size: 128,
+                ),
               const SizedBox(height: 22),
               Text(
-                user.name,
+                name,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -.4,
                 ),
               ),
               const SizedBox(height: 8),
@@ -69,79 +84,51 @@ class IncomingCallScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    'Incoming voice call',
+                    isVideo ? 'Incoming video call' : 'Incoming voice call',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .8),
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
               const Spacer(flex: 4),
-              LayoutBuilder(
-                builder: (context, box) {
-                  final railHeight = 260.0;
-                  return SizedBox(
-                    height: railHeight,
-                    width: 320,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Column(
-                          children: [
-                            Container(
-                              alignment: Alignment.topCenter,
-                              padding: const EdgeInsets.symmetric(vertical: 22),
-                              child: const Icon(
-                                Icons.videocam_off_rounded,
-                                color: Colors.white38,
-                                size: 22,
-                              ),
-                            ),
-                            Container(
-                              width: 6,
-                              height: railHeight - 90,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .14),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            Container(
-                              alignment: Alignment.bottomCenter,
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              child: Icon(
-                                Icons.mic_off_rounded,
-                                color: Colors.white.withValues(alpha: .5),
-                                size: 20,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Positioned(right: 18, child: SlideToAnswerRamp()),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const Spacer(flex: 2),
               Padding(
                 padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _CallAction(
-                      icon: Icons.notifications_outlined,
-                      label: 'Remind',
+                      icon: Icons.call_end_rounded,
+                      background: Palette.danger,
+                      label: 'Decline',
+                      onTap: () => context.pop(),
+                    ),
+                    _CallAction(
+                      icon:
+                          isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                      background: Palette.online,
+                      label: 'Accept',
                       onTap: () {
-                        infoToast(context, 'Call postponed (demo)');
+                        if (id.isEmpty) {
+                          infoToast(context, 'Cannot determine the caller');
+                          return;
+                        }
                         context.pop();
+                        context.push(
+                          '/call/live/$id${isVideo ? '?video=1' : ''}',
+                        );
                       },
                     ),
                     _CallAction(
                       icon: Icons.chat_bubble_outline_rounded,
+                      background: Colors.white24,
                       label: 'Message',
                       onTap: () {
+                        if (user == null) {
+                          infoToast(context, 'Unavailable in this context');
+                          return;
+                        }
                         final conv = backend.openWith(user);
                         context
                           ..pop()
@@ -159,82 +146,16 @@ class IncomingCallScreen extends ConsumerWidget {
   }
 }
 
-/// Rounded pill handle that swipes right-to-answer with interpolation.
-class SlideToAnswerRamp extends StatefulWidget {
-  const SlideToAnswerRamp({super.key});
-
-  @override
-  State<SlideToAnswerRamp> createState() => _SlideToAnswerRampState();
-}
-
-class _SlideToAnswerRampState extends State<SlideToAnswerRamp> {
-  double _x = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    const max = 205.0;
-    final knobColor = _x >= max * .98 ? Palette.online : Palette.danger;
-    return GestureDetector(
-      onHorizontalDragUpdate: (d) {
-        setState(() => _x = (_x + d.delta.dx).clamp(0, max));
-      },
-      onHorizontalDragEnd: (details) {
-        if (_x >= max * .97) {
-          context.go('/call/live/diego');
-        } else {
-          setState(() => _x = 0);
-        }
-      },
-      child: Stack(
-        children: [
-          Container(
-            width: 254,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: _x == 0 ? .16 : .22),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 18),
-            child: Text(
-              'Answer',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: .9),
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Transform.translate(
-            offset: Offset(_x, 0),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: knobColor,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.phone_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CallAction extends StatelessWidget {
   const _CallAction({
     required this.icon,
+    required this.background,
     required this.label,
     required this.onTap,
   });
 
   final IconData icon;
+  final Color background;
   final String label;
   final VoidCallback onTap;
 
@@ -246,21 +167,21 @@ class _CallAction extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 62,
+            height: 62,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .12),
+              color: background,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.white, size: 23),
+            child: Icon(icon, color: Colors.white, size: 26),
           ),
           const SizedBox(height: 8),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: .8),
+              color: Colors.white.withValues(alpha: .85),
               fontWeight: FontWeight.w700,
-              fontSize: 12,
+              fontSize: 12.5,
             ),
           ),
         ],

@@ -192,6 +192,7 @@ class MockBackend extends UniBackend {
     required String name,
     required String username,
     String? password,
+    String? email,
   }) async {
     me = UserProfile(
       id: newId('usr'),

@@ -20,6 +20,7 @@ class UniComApi {
     required String displayName,
     required String password,
     required String preferredLanguage,
+    String? email,
   }) async {
     await session.post(
       '/api/auth/register',
@@ -28,8 +29,22 @@ class UniComApi {
         'displayName': displayName,
         'password': password,
         'preferredLanguage': preferredLanguage,
+        if (email != null) 'email': email,
       },
     );
+  }
+
+  /// Debounced availability probe used by the signup form. Returns booleans
+  /// only (`username_ok` / `email_ok`); nulls for fields not sent.
+  Future<Map<String, dynamic>> checkAvailability({
+    String? username,
+    String? email,
+  }) async {
+    final data = await session.get('/api/users/check', {
+      if (username != null && username.isNotEmpty) 'username': username,
+      if (email != null && email.isNotEmpty) 'email': email,
+    });
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
   Future<void> login({
@@ -234,6 +249,25 @@ class UniComApi {
       return (session.post('/api/users/$userId/block') as Future<void>);
     }
     return (session.delete('/api/users/$userId/block') as Future<void>);
+  }
+
+  /// Mints a room-scoped LiveKit token server-side (authorization + block
+  /// checks happen there). Returns null when calling isn't configured.
+  Future<Map<String, dynamic>?> callToken({
+    required String peerId,
+    required String room,
+    String callType = 'audio',
+  }) async {
+    try {
+      final data = await session.post(
+        '/api/calls/token',
+        body: {'peerId': peerId, 'room': room, 'callType': callType},
+      );
+      return data is Map<String, dynamic> ? data : null;
+    } on ApiError catch (e) {
+      if (e.statusCode == 503) return null; // not configured on server
+      rethrow;
+    }
   }
 
   Future<void> typing(String conversationId) {

@@ -15,6 +15,8 @@ import {
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
+  // Account email (unique, normalized lowercase). Nullable for legacy rows.
+  email: text("email").unique(),
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
   avatarHue: integer("avatar_hue").notNull().default(220),

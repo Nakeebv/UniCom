@@ -31,6 +31,7 @@ abstract class UniBackend extends ChangeNotifier {
     required String name,
     required String username,
     String? password,
+    String? email,
   });
   Future<void> signIn(String emailOrUsername, {String? password});
   Future<void> signOut();

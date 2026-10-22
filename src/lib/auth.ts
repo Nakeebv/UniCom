@@ -44,6 +44,7 @@ export async function createUser(input: {
   username: string;
   displayName: string;
   password: string;
+  email?: string | null;
   preferredLanguage?: string;
   avatarHue?: number;
   isPersona?: boolean;
@@ -53,6 +54,7 @@ export async function createUser(input: {
   await db.insert(users).values({
     id,
     username: input.username,
+    email: input.email ? input.email.toLowerCase() : null,
     displayName: input.displayName,
     passwordHash: hashPassword(input.password),
     avatarHue: input.avatarHue ?? Math.floor(Math.random() * 360),

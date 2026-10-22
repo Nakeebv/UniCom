@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/palette.dart';
 import '../../shared/widgets/ui_kit.dart';
 import '../../providers.dart';
+import '../../data/api/uni_session.dart';
 
 /// Kit signup: teal labels, underline fields, confirm password,
 /// inline error state, disabled→enabled pill.
@@ -23,8 +26,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirm = TextEditingController();
   bool _loading = false;
 
+  Timer? _checkDebounce;
+  bool? _usernameAvailable;
+  bool? _emailAvailable;
+  bool _checking = false;
+
   @override
   void dispose() {
+    _checkDebounce?.cancel();
     _name.dispose();
     _username.dispose();
     _email.dispose();
@@ -41,13 +50,62 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return null;
   }
 
+  bool get _passwordStrong =>
+      _password.text.length >= 8 &&
+      RegExp(r'[A-Za-z]').hasMatch(_password.text) &&
+      RegExp(r'[0-9]').hasMatch(_password.text);
+
   bool get _valid {
-    final wantsUsername = _username.text.trim().length >= 3;
+    final wantsUsername = RegExp(
+      r'^[a-z0-9_]{3,24}$',
+    ).hasMatch(_username.text.trim().toLowerCase());
     return _name.text.trim().length >= 2 &&
         wantsUsername &&
+        _usernameAvailable == true &&
         RegExp(r'.+@.+\..+').hasMatch(_email.text) &&
-        _password.text.length >= 6 &&
+        _emailAvailable == true &&
+        _passwordStrong &&
         _confirm.text == _password.text;
+  }
+
+  /// Debounced availability probe — mirrors the server's normalization so the
+  /// green tick means exactly what the server will accept.
+  void _scheduleCheck() {
+    _checkDebounce?.cancel();
+    _checkDebounce = Timer(const Duration(milliseconds: 450), _runCheck);
+  }
+
+  Future<void> _runCheck() async {
+    final backend = ref.read(backendProvider);
+    final remote = backend.asRemote;
+    if (remote == null) {
+      // Offline demo mode: no server to ask; treat locally-valid as available.
+      setState(() {
+        final u = _username.text.trim().toLowerCase();
+        _usernameAvailable = RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(u);
+        _emailAvailable = RegExp(r'.+@.+\..+').hasMatch(_email.text);
+      });
+      return;
+    }
+    final u = _username.text.trim().toLowerCase();
+    final e = _email.text.trim().toLowerCase();
+    setState(() => _checking = true);
+    try {
+      final res = await remote.api.checkAvailability(
+        username: RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(u) ? u : null,
+        email: RegExp(r'.+@.+\..+').hasMatch(e) ? e : null,
+      );
+      if (!mounted) return;
+      setState(() {
+        _usernameAvailable = res['username_ok'] as bool?;
+        _emailAvailable = res['email_ok'] as bool?;
+        _checking = false;
+      });
+    } on ApiError {
+      if (mounted) setState(() => _checking = false);
+    } catch (_) {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -58,9 +116,51 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           name: _name.text.trim(),
           username: _username.text.trim().toLowerCase(),
           password: _password.text,
+          email: _email.text.trim().toLowerCase(),
         );
     if (!mounted) return;
     context.go('/auth/verify');
+  }
+
+  Widget? _availIcon(bool? v) {
+    if (_checking) {
+      return const Padding(
+        padding: EdgeInsets.all(14),
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (v == null) return null;
+    return Icon(
+      v ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+      color: v ? Palette.success : Palette.danger,
+      size: 20,
+    );
+  }
+
+  Widget _availHint(
+    bool? v, {
+    required String okText,
+    required String badText,
+  }) {
+    if (v == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4, left: 6),
+        child: Text(
+          v ? okText : badText,
+          style: TextStyle(
+            color: v ? Palette.success : Palette.danger,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -153,15 +253,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 22),
               TextField(
                 controller: _username,
-                onChanged: (_) => setState(() {}),
-                decoration: underline(label: 'Username (@handle)'),
+                onChanged: (_) {
+                  setState(() => _usernameAvailable = null);
+                  _scheduleCheck();
+                },
+                decoration: underline(
+                  label: 'Username (@handle)',
+                ).copyWith(suffixIcon: _availIcon(_usernameAvailable)),
               ),
-              const SizedBox(height: 22),
+              _availHint(
+                _usernameAvailable,
+                okText: 'Username is available',
+                badText: 'That username is taken',
+              ),
+              const SizedBox(height: 18),
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
-                onChanged: (_) => setState(() {}),
-                decoration: underline(label: 'Your email', error: emailError),
+                onChanged: (_) {
+                  setState(() => _emailAvailable = null);
+                  _scheduleCheck();
+                },
+                decoration: underline(
+                  label: 'Your email',
+                  error: emailError,
+                ).copyWith(suffixIcon: _availIcon(_emailAvailable)),
               ),
               if (emailError != null)
                 Align(
@@ -177,7 +293,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 22),
+              _availHint(
+                _emailAvailable,
+                okText: 'Email is available',
+                badText: 'An account with this email already exists',
+              ),
+              const SizedBox(height: 18),
               TextField(
                 controller: _password,
                 obscureText: true,
