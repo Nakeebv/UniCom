@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   // Account email (unique, normalized lowercase). Nullable for legacy rows.
   email: text("email").unique(),
+  // Set when the emailed verification code is confirmed.
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true, mode: "date" }),
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
   avatarHue: integer("avatar_hue").notNull().default(220),
@@ -53,6 +55,22 @@ export const sessions = pgTable(
 );
 
 /* ── Conversations ────────────────────────────────────────────────────────── */
+
+export const emailVerifications = pgTable(
+  "email_verifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("ix_email_verif_user").on(t.userId)],
+);
 
 export const conversations = pgTable("conversations", {
   id: text("id").primaryKey(),

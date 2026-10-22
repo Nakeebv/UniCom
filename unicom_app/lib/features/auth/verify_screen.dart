@@ -1,27 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../providers.dart';
 
 import '../../core/theme/palette.dart';
 import '../../shared/widgets/ui_kit.dart';
 import '../../shared/widgets/logo.dart';
 
-/// Kit verify: minimal 4-digit code with teal accents.
-class VerifyScreen extends StatefulWidget {
+/// Email verification: 6-digit code emailed via Resend, validated server-side.
+class VerifyScreen extends ConsumerStatefulWidget {
   const VerifyScreen({super.key});
 
   @override
-  State<VerifyScreen> createState() => _VerifyScreenState();
+  ConsumerState<VerifyScreen> createState() => _VerifyScreenState();
 }
 
-class _VerifyScreenState extends State<VerifyScreen> {
+class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   final _focus = FocusNode();
   final List<TextEditingController> _digits = List.generate(
-    4,
+    6,
     (_) => TextEditingController(),
   );
   bool _loading = false;
+  String? _error;
   Timer? _resend;
   int _secondsLeft = 30;
 
@@ -46,26 +50,48 @@ class _VerifyScreenState extends State<VerifyScreen> {
   }
 
   void _onChange(int index, String value) {
-    if (value.length == 4) {
-      for (var i = 0; i < 4; i++) {
+    if (value.length == 6) {
+      for (var i = 0; i < 6; i++) {
         _digits[i].text = value[i];
       }
     }
-    if (value.length == 1 && index < 3) {
+    if (value.length == 1 && index < 5) {
       FocusScope.of(context).nextFocus();
     }
     if (value.isEmpty && index > 0) {
       FocusScope.of(context).previousFocus();
     }
     final code = _digits.map((d) => d.text).join();
-    if (code.length == 4) _verify();
+    if (code.length == 6) _verify();
   }
 
   Future<void> _verify() async {
-    setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    context.go('/auth/language');
+    final code = _digits.map((d) => d.text).join();
+    if (code.length != 6) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final remote = ref.read(backendProvider).asRemote;
+    try {
+      if (remote != null) {
+        await remote.api.verifyEmail(code);
+      } else {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      }
+      if (!mounted) return;
+      context.go('/auth/language');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+      for (final d in _digits) {
+        d.clear();
+      }
+      _focus.requestFocus();
+    }
   }
 
   @override
@@ -119,8 +145,21 @@ class _VerifyScreenState extends State<VerifyScreen> {
               const SizedBox(height: 34),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(4, _otpBox),
+                children: List.generate(6, _otpBox),
               ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Palette.danger,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 40),
               SizedBox(
                 height: 56,
@@ -154,7 +193,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
                 child: Text(
                   _secondsLeft > 0
                       ? 'Resend code in 00:${_secondsLeft.toString().padLeft(2, '0')}'
-                      : 'Tap “Verify” to continue instantly in this demo',
+                      : 'Didn\'t get it? Tap Resend',
                   style: TextStyle(
                     fontSize: 12.5,
                     color: scheme.onSurfaceVariant,

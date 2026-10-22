@@ -6,6 +6,8 @@ import { createUser, issueSession, setSessionCookie } from "@/lib/auth";
 import { isSupported, DEFAULT_LANGUAGE } from "@/lib/i18n/languages";
 import { ensureSeed } from "@/db/seed";
 import { RULES, clientIp, enforce } from "@/lib/rate-limit";
+import { issueVerificationCode } from "@/lib/verification";
+import { emailConfigured } from "@/lib/email";
 
 /**
  * Account creation with integrity + abuse guards:
@@ -97,7 +99,22 @@ export async function POST(request: Request) {
   }
 
   const token = await issueSession(userId);
-  const res = NextResponse.json({ ok: true, user_id: userId }, { status: 201 });
+  // Email verification: send the 6-digit code. If email delivery is not
+  // configured we still create the account but tell the client honestly so
+  // the UI can show "verification email unavailable" rather than lie.
+  let emailSent = false;
+  let emailNote: string | null = null;
+  if (emailConfigured()) {
+    const sent = await issueVerificationCode(userId, email);
+    emailSent = sent.ok;
+    if (!sent.ok) emailNote = sent.reason ?? "send failed";
+  } else {
+    emailNote = "email delivery not configured";
+  }
+  const res = NextResponse.json(
+    { ok: true, user_id: userId, email_sent: emailSent, email_note: emailNote },
+    { status: 201 },
+  );
   setSessionCookie(res, token);
   return res;
 }

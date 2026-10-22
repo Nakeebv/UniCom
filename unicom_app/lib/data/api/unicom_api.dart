@@ -57,6 +57,21 @@ class UniComApi {
     );
   }
 
+  /// Confirms the emailed 6-digit code. Throws ApiError with the server's
+  /// message on an incorrect/expired code so the UI can show it directly.
+  Future<bool> verifyEmail(String code) async {
+    final data = await session.post(
+      '/api/auth/verify-email',
+      body: {'code': code},
+    );
+    return data is Map && data['verified'] == true;
+  }
+
+  /// Requests a fresh verification code for the signed-in account.
+  Future<void> resendVerificationCode() async {
+    await session.post('/api/auth/resend-code');
+  }
+
   Future<void> logout() async {
     try {
       await session.post('/api/auth/logout');

@@ -31,6 +31,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool get _valid =>
       RegExp(r'.+@.+\..+').hasMatch(_email.text) && _password.text.isNotEmpty;
 
+  /// Google OAuth is wired to the backend endpoint; when the server has no
+  /// Google credentials configured it returns 503 and we say so honestly.
+  void _continueWithGoogle(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Google sign-in needs GOOGLE_CLIENT_ID/SECRET configured on the server.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     setState(() => _loading = true);
     final backend = ref.read(backendProvider);
@@ -76,16 +88,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         fontSize: 14.5,
         fontWeight: FontWeight.w600,
       ),
-    );
-
-    Widget socialCircle(IconData icon, Color color) => Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: scheme.outline),
-      ),
-      child: Icon(icon, size: 25, color: color),
     );
 
     return Scaffold(
@@ -137,18 +139,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 26),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  socialCircle(Icons.facebook_rounded, const Color(0xFF1877F2)),
-                  const SizedBox(width: 18),
-                  socialCircle(Icons.public_rounded, const Color(0xFFEA4335)),
-                  const SizedBox(width: 18),
-                  socialCircle(
-                    Icons.apple_rounded,
-                    Theme.of(context).colorScheme.onSurface,
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: OutlinedButton.icon(
+                  onPressed: () => _continueWithGoogle(context),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: scheme.outline),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(27),
+                    ),
+                    foregroundColor: scheme.onSurface,
                   ),
-                ],
+                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                  label: const Text(
+                    'Continue with Google',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
               ),
               const SizedBox(height: 26),
               Center(

@@ -26,6 +26,8 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 export type SessionUser = {
+  email?: string | null;
+  emailVerified?: boolean;
   id: string;
   username: string;
   displayName: string;
@@ -110,6 +112,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       displayName: users.displayName,
       avatarHue: users.avatarHue,
       avatarKey: users.avatarKey,
+      email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
       bio: users.bio,
       isPersona: users.isPersona,
       lastSeenAt: users.lastSeenAt,
@@ -136,6 +140,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     username: row.username,
     displayName: row.displayName,
     avatarHue: row.avatarHue,
+    email: row.email,
+    emailVerified: !!row.emailVerifiedAt,
     avatarUrl: row.avatarKey ? `/api/users/${row.id}/avatar` : null,
     bio: row.bio,
     isPersona: row.isPersona,
