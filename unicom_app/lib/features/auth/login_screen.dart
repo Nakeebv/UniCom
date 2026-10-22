@@ -67,6 +67,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Dev convenience: one-tap sign-in as a seeded demo account. Field values
+  /// are filled in so the same path as a normal login runs (no auth bypass).
+  Future<void> _quickSignIn(String username) async {
+    setState(() {
+      _email.text = username;
+      _password.text = 'pass1234';
+    });
+    await _submit();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -269,6 +279,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
+              if (useRemoteBackend) ...[
+                const SizedBox(height: 26),
+                Center(
+                  child: Text(
+                    'QUICK TEST ACCOUNTS',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : () => _quickSignIn('alex'),
+                        child: const Text('Sign in as Alex'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : () => _quickSignIn('maya'),
+                        child: const Text('Sign in as Maya'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 18),
               const Center(child: UniComLogo(size: 34)),
             ],
