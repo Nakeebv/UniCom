@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show immutable, kIsWeb;
@@ -22,16 +23,26 @@ enum RecordingPhase {
 @immutable
 class RecordingResult {
   const RecordingResult({
-    required this.path,
     required this.duration,
     required this.samples,
+    this.path,
+    this.bytes,
+    this.mimeType,
+    this.blobUrl,
   });
 
-  /// Absolute path of the recorded file (m4a/AAC). Null only when the
-  /// platform returned nothing (treated as an error by callers).
+  /// Absolute path of the recorded file (m4a/AAC on mobile). Null on web,
+  /// where [bytes]/[blobUrl] carry the audio instead.
   final String? path;
   final Duration duration;
   final List<double> samples;
+
+  /// Raw encoded bytes (web path; also usable on mobile if provided).
+  final Uint8List? bytes;
+  final String? mimeType;
+
+  /// Blob URL for instant in-page preview (web only).
+  final String? blobUrl;
 }
 
 enum MicPermission { unknown, granted, denied, permanentlyDenied, unsupported }

@@ -12,7 +12,7 @@ export type RealtimeEvent =
   | { kind: "translation"; conversationId: string; messageId: string; targetLanguage: string; status: string }
   | { kind: "voice"; conversationId: string; messageId: string; status: string }
   | { kind: "typing"; conversationId: string; userId: string; name: string }
-  | { kind: "call"; conversationId: string; callId: string; status: string }
+  | { kind: "call"; conversationId: string; callId: string; status: string; participants: string[] }
   | { kind: "ping" };
 
 type Listener = (event: RealtimeEvent) => void;

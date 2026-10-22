@@ -123,6 +123,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     result.duration,
                     result.samples,
                     filePath: result.path,
+                    bytes: result.bytes,
+                    mimeType: result.mimeType,
                   );
                   _jumpBottom();
                 },
@@ -153,6 +155,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  /// Starts a real call: invite the peer server-side (they get an SSE ring),
+  /// then join the room the server allocated.
+  Future<void> _startCall(String peerId, {required bool video}) async {
+    final remote = ref.read(backendProvider).asRemote;
+    if (remote == null) {
+      if (mounted) {
+        infoToast(context, 'Calling needs live mode (server)');
+      }
+      return;
+    }
+    try {
+      final invite = await remote.startCall(
+        calleeId: peerId,
+        callType: video ? 'video' : 'audio',
+      );
+      final room = invite?['room'] as String?;
+      final callId = invite?['call_id'] as String?;
+      if (!mounted) return;
+      context.push(
+        '/call/live/$peerId?room=${Uri.encodeComponent(room ?? '')}'
+        '${callId != null ? '&call=$callId' : ''}'
+        '${video ? '&video=1' : ''}',
+      );
+    } catch (e) {
+      if (mounted) {
+        infoToast(context, e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
   }
 
   bool _sameDay(DateTime a, DateTime b) =>
@@ -369,23 +401,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
       actions: [
-        IconButton(
-          onPressed: () => context.push('/call/live/${other.id}'),
-          icon: const Icon(Icons.phone_outlined, size: 22),
+        // Compact, consistent 44px targets; the title uses Expanded so it
+        // truncates instead of pushing the actions off-screen.
+        _AppBarAction(
+          icon: Icons.phone_outlined,
+          tooltip: 'Voice call',
+          onTap: () => _startCall(other.id, video: false),
         ),
-        IconButton(
-          onPressed: () => context.push('/call/live/${other.id}?video=1'),
-          icon: const Icon(Icons.videocam_outlined, size: 22),
+        _AppBarAction(
+          icon: Icons.videocam_outlined,
+          tooltip: 'Video call',
+          onTap: () => _startCall(other.id, video: true),
         ),
-        IconButton(
-          onPressed:
+        _AppBarAction(
+          icon: Icons.more_vert_rounded,
+          tooltip: 'Chat options',
+          onTap:
               () =>
                   conv.isGroup
                       ? _groupSheet(context, conv)
                       : _peerSheet(context, conv, other),
-          icon: const Icon(Icons.more_vert_rounded, size: 22),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
       ],
     );
   }
@@ -1012,6 +1049,33 @@ class _SheetRow extends StatelessWidget {
           fontSize: 14,
           color: danger ? scheme.error : null,
         ),
+      ),
+    );
+  }
+}
+
+/// Fixed-width app-bar action so header actions never overlap the title on
+/// narrow screens (44px = accessible touch target).
+class _AppBarAction extends StatelessWidget {
+  const _AppBarAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, size: 22),
       ),
     );
   }

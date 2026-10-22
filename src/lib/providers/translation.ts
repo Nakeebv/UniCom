@@ -140,7 +140,10 @@ function buildGroqMt(): Provider | null {
     name: `groq:${model}`,
     async translate(text, source, target) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 20_000);
+      const timer = setTimeout(() => controller.abort(), 30_000);
+      // Reasoning models (gpt-oss, qwen3) support this hint; others 400 on it.
+      const supportsReasoning =
+          /gpt-oss|qwen3|deepseek-r1|reasoning/i.test(model);
       try {
         const res = await fetch(`${baseUrl}/chat/completions`, {
           method: "POST",
@@ -152,7 +155,11 @@ function buildGroqMt(): Provider | null {
           body: JSON.stringify({
             model,
             temperature: 0.2,
-            max_tokens: Math.min(2048, Math.max(128, Math.ceil(text.length * 3))),
+            // Reasoning models burn the budget on hidden reasoning and can
+            // return empty `content` — which silently degraded us to the weak
+            // fallbacks. Keep reasoning minimal and leave room to finish.
+            ...(supportsReasoning ? { reasoning_effort: "low" } : {}),
+            max_tokens: Math.min(4096, Math.max(512, Math.ceil(text.length * 6))),
             messages: [
               {
                 role: "system",

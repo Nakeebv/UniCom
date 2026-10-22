@@ -161,6 +161,33 @@ class _UniComAppState extends ConsumerState<UniComApp> {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: _router,
+      builder: (context, child) => _CallRinger(child: child ?? const SizedBox.shrink()),
+    );
+  }
+}
+
+/// Global incoming-call overlay: watches the backend's ringing state and
+/// surfaces the incoming-call screen over whatever the user is doing.
+class _CallRinger extends ConsumerWidget {
+  const _CallRinger({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final backend = ref.watch(backendProvider);
+    final call = backend.incomingCall;
+    return Stack(
+      children: [
+        child,
+        if (call != null)
+          Positioned.fill(
+            child: IncomingCallOverlay(
+              callerId: call['caller_id'] as String? ?? '',
+              callId: call['call_id'] as String? ?? '',
+              callType: call['call_type'] as String? ?? 'audio',
+            ),
+          ),
+      ],
     );
   }
 }

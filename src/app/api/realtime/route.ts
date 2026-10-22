@@ -43,7 +43,13 @@ export async function GET(request: Request) {
       send({ kind: "ping" });
 
       const unsubscribe = subscribe((event) => {
-        // Authorization: only forward events in conversations the user is in.
+        // Call events are delivered only to their two participants.
+        if (event.kind === "call") {
+          if (!event.participants.includes(me.id)) return;
+          send(event);
+          return;
+        }
+        // Everything else is scoped to conversations the user belongs to.
         if ("conversationId" in event && event.conversationId) {
           if (!myConversations.has(event.conversationId)) return;
         }

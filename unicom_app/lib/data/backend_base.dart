@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 
@@ -62,6 +64,8 @@ abstract class UniBackend extends ChangeNotifier {
     Duration duration,
     List<double> waveform, {
     String? filePath,
+    Uint8List? bytes,
+    String? mimeType,
   });
   void resendTranslation(String messageId, String targetLanguage);
   Future<void> retryVoiceSpeech(String messageId);
@@ -107,6 +111,13 @@ abstract class UniBackend extends ChangeNotifier {
   Future<void> setPreferOriginalAudio(bool value);
   double get playbackRate;
   Future<void> setPlaybackRate(double value);
+
+  /// Currently ringing call (id, peerId, type), or null. Remote-only;
+  /// null in mock mode. Listeners are notified on change.
+  Map<String, dynamic>? get incomingCall => null;
+
+  /// Currently active/accepted call the user should join, or null.
+  Map<String, dynamic>? get activeCall => null;
 
   // ── Demo-only helpers (no-op or local-only on remote) ───────────────────
   void ensureSeeded() {}

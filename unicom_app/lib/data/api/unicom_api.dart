@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import '../models/message.dart';
@@ -206,16 +207,19 @@ class UniComApi {
   }
 
   Future<String> uploadVoice({
-    required String filePath,
+    String? filePath,
+    Uint8List? bytes,
+    String? mimeType,
     required int durationMs,
   }) async {
-    final bytes = await File(filePath).readAsBytes();
     final data = await session.post(
       '/api/media',
       body: {
-        'base64': base64Encode(bytes),
-        // The recorder produces .m4a (AAC) on iOS and Android.
-        'mimeType': 'audio/mp4',
+        'base64': base64Encode(
+          bytes ?? (await File(filePath!).readAsBytes()),
+        ),
+        // Recorder output: .m4a/AAC on mobile, webm/opus on web.
+        'mimeType': mimeType ?? 'audio/mp4',
         'durationMs': durationMs,
       },
     );
@@ -264,6 +268,35 @@ class UniComApi {
       return (session.post('/api/users/$userId/block') as Future<void>);
     }
     return (session.delete('/api/users/$userId/block') as Future<void>);
+  }
+
+  /// Creates a ringing call invitation; the callee is notified over SSE.
+  Future<Map<String, dynamic>> inviteCall({
+    required String calleeId,
+    String callType = 'audio',
+  }) async {
+    final data = await session.post('/api/calls', body: {
+      'calleeId': calleeId,
+      'callType': callType,
+    });
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> getCalls() async {
+    final data = await session.get('/api/calls');
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
+  Future<void> acceptCall(String callId) async {
+    await session.post('/api/calls/$callId/accept');
+  }
+
+  Future<void> declineCall(String callId) async {
+    await session.post('/api/calls/$callId/decline');
+  }
+
+  Future<void> endCall(String callId) async {
+    await session.post('/api/calls/$callId/end');
   }
 
   /// Mints a room-scoped LiveKit token server-side (authorization + block

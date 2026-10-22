@@ -189,3 +189,101 @@ class _CallAction extends StatelessWidget {
     );
   }
 }
+
+/// Ringing overlay shown over any screen when a call arrives (driven by the
+/// backend's ringing state). Accept joins the real room; decline notifies the
+/// server so the caller stops ringing.
+class IncomingCallOverlay extends ConsumerWidget {
+  const IncomingCallOverlay({
+    super.key,
+    required this.callerId,
+    required this.callId,
+    required this.callType,
+  });
+
+  final String callerId;
+  final String callId;
+  final String callType;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final backend = ref.watch(backendProvider);
+    final user = backend.contactById(callerId);
+    final name = user?.name ?? 'Unknown caller';
+    final isVideo = callType == 'video';
+
+    return Material(
+      color: Colors.black.withValues(alpha: .82),
+      child: SafeArea(
+        child: Column(
+          children: [
+            const Spacer(flex: 3),
+            if (user != null)
+              UserAvatar(name: user.name, gradient: user.gradient, userId: user.id, imageUrl: user.avatarUrl, size: 120, showOnline: false)
+            else
+              const Icon(Icons.person_rounded, color: Colors.white38, size: 120),
+            const SizedBox(height: 20),
+            Text(name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(
+              isVideo ? 'Incoming video call…' : 'Incoming voice call…',
+              style: TextStyle(color: Colors.white.withValues(alpha: .75), fontWeight: FontWeight.w600),
+            ),
+            const Spacer(flex: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _OverlayAction(
+                  icon: Icons.call_end_rounded,
+                  background: Palette.danger,
+                  label: 'Decline',
+                  onTap: () => backend.asRemote?.declineCallById(callId),
+                ),
+                _OverlayAction(
+                  icon: isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                  background: Palette.online,
+                  label: 'Accept',
+                  onTap: () async {
+                    await backend.asRemote?.acceptCallById(callId);
+                    if (context.mounted) {
+                      context.push('/call/live/$callerId?call=$callId${isVideo ? '&video=1' : ''}');
+                    }
+                  },
+                ),
+              ],
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverlayAction extends StatelessWidget {
+  const _OverlayAction({required this.icon, required this.background, required this.label, required this.onTap});
+  final IconData icon;
+  final Color background;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Column(
+        children: [
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: .9), fontWeight: FontWeight.w700, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+}

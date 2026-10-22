@@ -72,6 +72,24 @@ export const emailVerifications = pgTable(
   (t) => [index("ix_email_verif_user").on(t.userId)],
 );
 
+export const calls = pgTable(
+  "calls",
+  {
+    id: text("id").primaryKey(),
+    callerId: text("caller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    calleeId: text("callee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    callType: text("call_type").notNull().default("audio"), // audio | video
+    room: text("room").notNull(),
+    // ringing | accepted | declined | cancelled | ended | missed
+    status: text("status").notNull().default("ringing"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    answeredAt: timestamp("answered_at", { withTimezone: true, mode: "date" }),
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [index("ix_calls_callee").on(t.calleeId, t.status)],
+);
+
 export const conversations = pgTable("conversations", {
   id: text("id").primaryKey(),
   type: text("type").notNull().default("direct"), // direct | group

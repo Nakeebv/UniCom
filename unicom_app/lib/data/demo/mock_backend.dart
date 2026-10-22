@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
@@ -928,6 +929,8 @@ class MockBackend extends UniBackend {
     Duration duration,
     List<double> waveform, {
     String? filePath,
+    Uint8List? bytes,
+    String? mimeType,
   }) {
     final conv = _conversations[conversationId];
     final meUser = me;

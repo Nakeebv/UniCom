@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/audio/playback_service.dart';
+import '../../../core/audio/recording_factory.dart';
 import '../../../core/audio/recording_service.dart';
 import '../../../core/theme/palette.dart';
 import '../../../core/utils.dart';
@@ -41,7 +42,7 @@ class RecorderOverlay extends StatefulWidget {
 class _RecorderOverlayState extends State<RecorderOverlay>
     with SingleTickerProviderStateMixin {
   late final AudioRecordingService _service =
-      widget.service ?? NativeRecordingService();
+      widget.service ?? createRecordingService();
 
   RecordingPhase _phase = RecordingPhase.idle;
   String? _error;
@@ -71,32 +72,39 @@ class _RecorderOverlayState extends State<RecorderOverlay>
       return;
     }
     setState(() => _phase = RecordingPhase.requestingPermission);
-    var permission = await _service.checkPermission();
-    if (permission == MicPermission.denied ||
-        permission == MicPermission.unknown) {
-      permission = await _service.requestPermission();
-    }
-    if (!mounted) return;
-    if (permission == MicPermission.permanentlyDenied) {
-      setState(() => _phase = RecordingPhase.error);
-      setState(
-        () =>
-            _error =
-                'Microphone access is blocked for UniCom. Enable it in Settings to '
-                'record voice notes.',
-      );
-      return;
-    }
-    if (permission != MicPermission.granted) {
-      setState(() {
-        _phase = RecordingPhase.error;
-        _error = 'Microphone permission was not granted.';
-      });
-      return;
-    }
-
     try {
-      await _service.start();
+      var permission = await _service
+          .checkPermission()
+          .timeout(const Duration(seconds: 8), onTimeout: () => MicPermission.unknown);
+      if (permission == MicPermission.denied ||
+          permission == MicPermission.unknown) {
+        permission = await _service
+            .requestPermission()
+            .timeout(const Duration(seconds: 45),
+                onTimeout: () => MicPermission.denied);
+      }
+      if (!mounted) return;
+      if (permission == MicPermission.permanentlyDenied) {
+        setState(() {
+          _phase = RecordingPhase.error;
+          _error =
+              'Microphone access is blocked. Enable it in your browser/OS '
+              'settings to record voice notes.';
+        });
+        return;
+      }
+      if (permission != MicPermission.granted) {
+        setState(() {
+          _phase = RecordingPhase.error;
+          _error = 'Microphone permission was not granted.';
+        });
+        return;
+      }
+
+      await _service
+          .start()
+          .timeout(const Duration(seconds: 12),
+              onTimeout: () => throw StateError('start timed out'));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -149,12 +157,14 @@ class _RecorderOverlayState extends State<RecorderOverlay>
 
   Future<void> _preparePreview() async {
     final r = _result;
-    if (r == null || r.path == null) return;
+    if (r == null) return;
+    if (r.path == null && r.blobUrl == null) return;
     try {
       final controller = VoicePlaybackController();
       await controller.loadSame(
-        cacheKey: 'preview-${r.path}',
+        cacheKey: 'preview-${r.path ?? r.blobUrl}',
         filePath: r.path,
+        url: r.blobUrl,
         declaredDuration: r.duration,
       );
       _preview = controller;

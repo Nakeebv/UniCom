@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,9 @@ import 'unicom_api.dart';
 /// capped at the API's recent-80 window per conversation.
 class RemoteBackend extends UniBackend {
   final Map<String, bool> _hasMore = {};
+  Map<String, dynamic>? _incomingCall;
+  Map<String, dynamic>? _activeCall;
+  Timer? _callRingTimer;
   RemoteBackend({required String baseUrl})
     : api = UniComApi(UniSession(baseUrl: baseUrl));
 
@@ -75,6 +79,7 @@ class RemoteBackend extends UniBackend {
     await _refreshDirectory();
     await _refreshSummaries();
     _startTimers();
+    startCallPolling();
     ready = true;
     notifyListeners();
   }
@@ -152,9 +157,83 @@ class RemoteBackend extends UniBackend {
         }
         break;
       case 'call':
-        // Call lifecycle events land here once the calling client ships.
+        _handleCallEvent(event);
         break;
     }
+  }
+
+  void _handleCallEvent(Map<String, dynamic> event) {
+    final status = event['status'] as String?;
+    final callId = event['callId'] as String?;
+    if (callId == null) return;
+    switch (status) {
+      case 'ringing':
+        // Only the callee shows an incoming-call UI.
+        final payload = event['participants'] as List?;
+        if (payload != null && payload.contains(_me?.id)) {
+          // Determine if I'm the callee: fetch authoritative state.
+          unawaited(_refreshCallState());
+        }
+        break;
+      case 'accepted':
+        _activeCall = {'call_id': callId};
+        _incomingCall = null;
+        notifyListeners();
+        break;
+      case 'declined':
+      case 'ended':
+        _incomingCall = null;
+        _activeCall = null;
+        notifyListeners();
+        break;
+    }
+  }
+
+  Future<void> _refreshCallState() async {
+    try {
+      final data = await api.getCalls();
+      final incoming = data['incoming'] as Map<String, dynamic>?;
+      _incomingCall = incoming;
+      _activeCall = data['active'] as Map<String, dynamic>?;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Polls call state as a fallback for missed SSE events (cheap, 3s window).
+  void startCallPolling() {
+    _callRingTimer?.cancel();
+    _callRingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_me == null || _disposed) return;
+      unawaited(_refreshCallState());
+    });
+  }
+
+  /// Starts an outgoing call: invite → wait for accept → join the room.
+  Future<Map<String, dynamic>?> startCall({
+    required String calleeId,
+    String callType = 'audio',
+  }) async {
+    final invite = await api.inviteCall(calleeId: calleeId, callType: callType);
+    return invite;
+  }
+
+  Future<void> endCallById(String callId) async {
+    _incomingCall = null;
+    _activeCall = null;
+    notifyListeners();
+    await api.endCall(callId);
+  }
+
+  Future<void> acceptCallById(String callId) async {
+    await api.acceptCall(callId);
+    _incomingCall = null;
+    notifyListeners();
+  }
+
+  Future<void> declineCallById(String callId) async {
+    _incomingCall = null;
+    notifyListeners();
+    await api.declineCall(callId);
   }
 
   /// Heartbeat so the peer sees a live typing indicator (debounced by caller).
@@ -268,7 +347,14 @@ class RemoteBackend extends UniBackend {
   }
 
   @override
+  Map<String, dynamic>? get incomingCall => _incomingCall;
+
+  @override
+  Map<String, dynamic>? get activeCall => _activeCall;
+
+  @override
   void dispose() {
+    _callRingTimer?.cancel();
     _disposed = true;
     stopTimers();
     session.dispose();
@@ -683,17 +769,22 @@ class RemoteBackend extends UniBackend {
     Duration duration,
     List<double> waveform, {
     String? filePath,
+    Uint8List? bytes,
+    String? mimeType,
   }) {
     final meUser = _me;
-    if (meUser == null || filePath == null) {
-      // Remote mode requires a real recording; never fabricate one.
-      throw StateError('Remote voice notes need a recorded file (mobile app).');
+    if (meUser == null || (filePath == null && bytes == null)) {
+      // Remote mode requires real audio (a file on mobile, bytes on web);
+      // never fabricate one.
+      throw StateError('Remote voice notes need recorded audio.');
     }
     final clientId = 'ck-${DateTime.now().microsecondsSinceEpoch}';
     unawaited(() async {
       await _withAuth(() async {
         final assetId = await api.uploadVoice(
           filePath: filePath,
+          bytes: bytes,
+          mimeType: mimeType,
           durationMs: duration.inMilliseconds,
         );
         await api.sendVoice(

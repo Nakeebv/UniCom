@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import '../../core/call_session.dart';
 import '../../core/theme/palette.dart';
+import '../../data/api/remote_backend.dart';
 import '../../providers.dart';
 import '../../shared/widgets/ui_kit.dart';
 
@@ -21,6 +24,7 @@ class LiveCallScreen extends ConsumerStatefulWidget {
 class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
   CallSession? _session;
   String? _room;
+  String? _callId;
 
   @override
   void didChangeDependencies() {
@@ -28,6 +32,8 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     final state = GoRouterState.of(context);
     final peerId = state.pathParameters['id'] ?? '';
     final isVideo = state.uri.queryParameters['video'] == '1';
+    final serverRoom = state.uri.queryParameters['room'];
+    final callId = state.uri.queryParameters['call'];
     if (_session != null) return;
     final backend = ref.read(backendProvider);
     final remote = backend.asRemote;
@@ -35,7 +41,9 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
       // Offline demo mode: no server to mint tokens — honest message.
       return;
     }
-    _room = 'call_${DateTime.now().millisecondsSinceEpoch}_$peerId';
+    _room =
+        serverRoom ?? 'call_${DateTime.now().millisecondsSinceEpoch}_$peerId';
+    _callId = callId;
     final session = CallSession(
       api: remote.api,
       room: _room!,
@@ -53,8 +61,21 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     super.dispose();
   }
 
+  RemoteBackend? _cachedRemote;
+
+  Future<void> _hangUpAndPop(BuildContext context) async {
+    await _session?.hangUp();
+    final remote = _cachedRemote;
+    final callId = _callId;
+    if (callId != null && remote != null) {
+      unawaited(remote.endCallById(callId));
+    }
+    if (context.mounted) context.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    _cachedRemote = ref.read(backendProvider).asRemote;
     final session = _session;
     if (session == null) return _notConfigured(context);
 
@@ -165,10 +186,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
   }
 
   Widget _endButton(BuildContext context) => GestureDetector(
-    onTap: () async {
-      await _session?.hangUp();
-      if (context.mounted) context.pop();
-    },
+    onTap: () => _hangUpAndPop(context),
     child: Container(
       width: 64,
       height: 64,
@@ -276,10 +294,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                   _round(
                     icon: Icons.call_end_rounded,
                     danger: true,
-                    onTap: () async {
-                      await session.hangUp();
-                      if (context.mounted) context.pop();
-                    },
+                    onTap: () => _hangUpAndPop(context),
                   ),
                 ],
               ),
