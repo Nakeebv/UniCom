@@ -27,3 +27,6 @@ out/
 Thumbs.db
 public/app/
 public/downloads/
+public/downloads/unicom-arm64.apk
+public/downloads/unicom-live.apk
+public/app/

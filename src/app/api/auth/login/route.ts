@@ -4,8 +4,11 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { issueSession, setSessionCookie, verifyPassword } from "@/lib/auth";
 import { ensureSeed } from "@/db/seed";
+import { RULES, clientIp, enforce } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limited = enforce(RULES.login, clientIp(request));
+  if (limited) return limited;
   await ensureSeed();
   const body = (await request.json().catch(() => null)) as { username?: string; password?: string } | null;
   const username = (body?.username ?? "").trim().toLowerCase();

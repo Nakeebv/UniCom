@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/audio/recording_service.dart';
@@ -15,6 +17,7 @@ class Composer extends StatefulWidget {
     required this.enabled,
     this.onDemoVoice,
     this.onShare,
+    this.onTyping,
     this.initialDraft = '',
   });
 
@@ -23,6 +26,7 @@ class Composer extends StatefulWidget {
   final Future<void> Function(Duration duration)? onDemoVoice;
   final bool enabled;
   final VoidCallback? onShare;
+  final VoidCallback? onTyping;
   final String initialDraft;
 
   @override
@@ -34,9 +38,11 @@ class _ComposerState extends State<Composer> {
     text: widget.initialDraft,
   );
   final FocusNode _focus = FocusNode();
+  Timer? _typingDebounce;
 
   @override
   void dispose() {
+    _typingDebounce?.cancel();
     _c.dispose();
     _focus.dispose();
     super.dispose();
@@ -125,7 +131,16 @@ class _ComposerState extends State<Composer> {
                 maxLines: 5,
                 textInputAction: TextInputAction.newline,
                 enabled: widget.enabled,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  setState(() {});
+                  if (_c.text.isNotEmpty) {
+                    _typingDebounce?.cancel();
+                    _typingDebounce = Timer(
+                      const Duration(milliseconds: 600),
+                      () => widget.onTyping?.call(),
+                    );
+                  }
+                },
                 style: const TextStyle(
                   fontSize: 14.6,
                   fontWeight: FontWeight.w500,

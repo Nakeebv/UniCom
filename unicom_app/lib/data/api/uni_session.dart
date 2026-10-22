@@ -119,6 +119,30 @@ class UniSession {
     return res;
   }
 
+  /// Opens the SSE stream and yields decoded JSON objects per `data:` line.
+  /// Reconnects are the caller's responsibility (see RemoteBackend).
+  Stream<Map<String, dynamic>> events(String path) async* {
+    while (true) {
+      final request = http.Request('GET', _uri(path));
+      request.headers.addAll(_headers({'accept': 'text/event-stream'}));
+      final response = await _client.send(request);
+      if (response.statusCode >= 400) {
+        throw ApiError(response.statusCode, 'event stream failed');
+      }
+      final lines = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+      await for (final line in lines) {
+        if (!line.startsWith('data:')) continue;
+        final raw = line.substring(5).trim();
+        if (raw.isEmpty) continue;
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) yield decoded;
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+  }
+
   bool get hasSession => _cookies.isNotEmpty;
 
   void clear() => _cookies.clear();

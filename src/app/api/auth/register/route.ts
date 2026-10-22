@@ -5,8 +5,11 @@ import { users } from "@/db/schema";
 import { createUser, issueSession, setSessionCookie } from "@/lib/auth";
 import { isSupported, DEFAULT_LANGUAGE } from "@/lib/i18n/languages";
 import { ensureSeed } from "@/db/seed";
+import { RULES, clientIp, enforce } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limited = enforce(RULES.register, clientIp(request));
+  if (limited) return limited;
   await ensureSeed();
   const body = (await request.json().catch(() => null)) as {
     username?: string;

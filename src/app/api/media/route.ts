@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { config as appConfig } from "@/lib/config";
 import { newId } from "@/lib/ids";
 import { extFromMime, mediaKeys, storeObject } from "@/lib/storage";
+import { RULES, enforce } from "@/lib/rate-limit";
 
 const MAX_BYTES = appConfig.limits.maxAudioBytes; // voice notes: small, private uploads
 const MAX_DURATION_MS = appConfig.limits.maxAudioMs;
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  const limited = enforce(RULES.media, me.id);
+  if (limited) return limited;
   const body = (await request.json().catch(() => null)) as {
     base64?: string;
     mimeType?: string;

@@ -41,6 +41,8 @@ class RemoteBackend extends UniBackend {
   String? _activeConversation;
   Timer? _syncTimer;
   Timer? _messageTimer;
+  StreamSubscription<Map<String, dynamic>>? _eventsSub;
+  bool _eventsConnected = false;
   bool _disposed = false;
 
   // Local-only preference state (UI parity with demo mode).
@@ -80,11 +82,86 @@ class RemoteBackend extends UniBackend {
   void _startTimers() {
     _syncTimer?.cancel();
     _messageTimer?.cancel();
-    _syncTimer = Timer.periodic(syncInterval, (_) => _safeSync());
+    // Polling is now the FALLBACK. With a live SSE connection it runs slow
+    // (safety net); without one it runs at the original cadence.
+    _syncTimer = Timer.periodic(
+      _eventsConnected ? const Duration(seconds: 10) : syncInterval,
+      (_) => _safeSync(),
+    );
     _messageTimer = Timer.periodic(
-      messageInterval,
+      _eventsConnected ? const Duration(seconds: 15) : messageInterval,
       (_) => _safeMessageRefresh(),
     );
+    _startEvents();
+  }
+
+  /// Live Server-Sent Events stream — the primary realtime channel.
+  void _startEvents() {
+    _eventsSub?.cancel();
+    _eventsSub = session
+        .events('/api/realtime')
+        .listen(
+          (event) {
+            _eventsConnected = true;
+            _handleEvent(event);
+          },
+          onError: (_) {
+            _eventsConnected = false;
+          },
+          onDone: () {
+            _eventsConnected = false;
+          },
+          cancelOnError: false,
+        );
+  }
+
+  void _handleEvent(Map<String, dynamic> event) {
+    final kind = event['kind'] as String?;
+    final conversationId = event['conversationId'] as String?;
+    switch (kind) {
+      case 'ping':
+        _eventsConnected = true;
+        break;
+      case 'message':
+        if (conversationId != null) {
+          unawaited(
+            fetchChanged(
+              conversationId,
+            ).then((_) => _refreshSummaries()).catchError((_) {}),
+          );
+        }
+        break;
+      case 'translation':
+      case 'voice':
+      case 'receipt':
+        if (conversationId != null && conversationId == _activeConversation) {
+          unawaited(fetchChanged(conversationId).catchError((_) {}));
+        }
+        break;
+      case 'typing':
+        if (conversationId != null && event['userId'] != _me?.id) {
+          final t =
+              (_typers[conversationId] ?? <String>{})
+                ..add(event['userId'] as String);
+          _typers[conversationId] = t;
+          final conv = _conversations[conversationId];
+          if (conv != null) {
+            _conversations[conversationId] = conv.copyWith(typingUserIds: t);
+          }
+          notifyListeners();
+        }
+        break;
+      case 'call':
+        // Call lifecycle events land here once the calling client ships.
+        break;
+    }
+  }
+
+  /// Heartbeat so the peer sees a live typing indicator (debounced by caller).
+  void notifyTyping() {
+    final cid = _activeConversation;
+    if (cid == null) return;
+    unawaited(api.typing(cid).catchError((_) {}));
   }
 
   Future<void> _safeSync() async {
@@ -183,8 +260,11 @@ class RemoteBackend extends UniBackend {
   void stopTimers() {
     _syncTimer?.cancel();
     _messageTimer?.cancel();
+    _eventsSub?.cancel();
     _syncTimer = null;
     _messageTimer = null;
+    _eventsSub = null;
+    _eventsConnected = false;
   }
 
   @override

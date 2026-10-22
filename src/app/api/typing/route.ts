@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { isMember } from "@/lib/serialize";
 import { recordTyping } from "@/lib/typing";
+import { publish } from "@/lib/realtime";
 
 export async function POST(request: Request) {
   const me = await getSessionUser();
@@ -13,5 +14,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   recordTyping(conversationId, me.id, me.displayName);
+  publish({ kind: "typing", conversationId, userId: me.id, name: me.displayName });
   return NextResponse.json({ ok: true });
 }

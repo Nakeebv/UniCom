@@ -22,6 +22,8 @@ import {
   planTargetLanguages,
 } from "@/lib/queue";
 import { isMember, loadRecentMessages } from "@/lib/serialize";
+import { RULES, enforce } from "@/lib/rate-limit";
+import { publish } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,9 @@ export async function POST(request: Request, { params }: Params) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!(await isMember(conversationId, me.id))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
+  const limited = enforce(RULES.send, me.id);
+  if (limited) return limited;
 
   const body = (await request.json().catch(() => null)) as {
     type?: string;
@@ -160,6 +165,7 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   await markOutboxPublished(outboxId);
+  publish({ kind: "message", conversationId, messageId, senderId: me.id });
   if (type === "voice") {
     await enqueueVoiceJobs(messageId);
   } else {

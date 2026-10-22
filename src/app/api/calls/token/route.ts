@@ -4,6 +4,7 @@ import { conversationMembers, userBlocks } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
 import { livekitConfigured, livekitUrl, mintCallToken } from "@/lib/livekit";
+import { RULES, enforce } from "@/lib/rate-limit";
 
 /** Server-minted, room-scoped LiveKit access token (5-min TTL).
  *  Caller must be authenticated; peer must exist in an allowed direct
@@ -11,6 +12,8 @@ import { livekitConfigured, livekitUrl, mintCallToken } from "@/lib/livekit";
 export async function POST(request: Request) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const limited = enforce(RULES.callToken, me.id);
+  if (limited) return limited;
   if (!livekitConfigured()) {
     return NextResponse.json({ error: "Calling is not configured on this server" }, { status: 503 });
   }

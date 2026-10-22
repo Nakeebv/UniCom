@@ -29,6 +29,7 @@ import { transcribeAudio, sttConfigured } from "@/lib/providers/stt";
 import { synthesizeSpeech, ttsSupportedFor } from "@/lib/providers/tts";
 import { getObjectBytes, mediaKeys, storeObject } from "@/lib/storage";
 import { mediaAssets } from "@/db/schema";
+import { publish } from "@/lib/realtime";
 
 const MAX_ATTEMPTS = 3;
 
@@ -192,6 +193,7 @@ export async function runTranslation(
       detail: `attempt ${attempt}`,
       attempts: attempt,
     });
+    publish({ kind: "translation", conversationId: msg.conversationId, messageId, targetLanguage, status: "completed" });
   } catch (err) {
     const reason = err instanceof Error ? err.message : "provider failure";
     if (attempt < MAX_ATTEMPTS) {
@@ -208,6 +210,7 @@ export async function runTranslation(
         2 ** attempt * 1400 + Math.random() * 800,
       );
     } else {
+      publish({ kind: "translation", conversationId: msg.conversationId, messageId, targetLanguage, status: "failed" });
       await upsertTranslationRow({
         messageId,
         targetLanguage,
@@ -301,6 +304,7 @@ async function setVoiceJob(
         updatedAt: new Date(),
       })
       .where(eq(voiceJobs.id, existing.id));
+    await publishVoice(messageId, targetLanguage, patch.status ?? existing.status);
     return existing.id;
   }
   const id = newId("vjob");
@@ -312,7 +316,14 @@ async function setVoiceJob(
     detail: patch.detail ?? null,
     attempts: patch.attempts ?? 0,
   });
+  await publishVoice(messageId, targetLanguage, patch.status ?? "queued");
   return id;
+}
+
+/** Resolve the conversation for a message and broadcast a voice status event. */
+async function publishVoice(messageId: string, targetLanguage: string, status: string): Promise<void> {
+  const [msg] = await db.select({ cid: messages.conversationId }).from(messages).where(eq(messages.id, messageId)).limit(1);
+  if (msg) publish({ kind: "voice", conversationId: msg.cid, messageId, status });
 }
 
 export async function enqueueVoiceJobs(messageId: string): Promise<void> {

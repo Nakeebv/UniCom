@@ -145,6 +145,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   );
                   _jumpBottom();
                 },
+                onTyping: () => _cachedBackend?.asRemote?.notifyTyping(),
                 onShare: () => _shareSheet(context, conv),
               ),
             ],
