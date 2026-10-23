@@ -61,6 +61,7 @@ flutter:
     - assets/images/avatars/
     - assets/brand/logo_master.png
     - assets/brand/logo_full.png
+    - assets/onboarding/
 
 dependency_overrides:
   record_linux: ^1.2.1
