@@ -83,21 +83,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             fit: StackFit.expand,
             children: [
               // ── Photo slideshow ────────────────────────────────────────
-              AnimatedSwitcher(
-                duration: _fade,
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: KeyedSubtree(
-                  key: ValueKey(_index),
-                  child: Image.asset(
-                    _slides[_index],
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(0, -0.15), // keep faces visible
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
+              // All five images stay mounted; the active frame fades in over
+              // the previous one (zero blank frames, deterministic cycling —
+              // a single failed decode can never leave a stuck blank screen
+              // because the previous photo remains underneath).
+              ...List.generate(_slides.length, (i) {
+                return Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: _index == i ? 1.0 : 0.0,
+                    duration: _fade,
+                    curve: Curves.easeOut,
+                    child: Image.asset(
+                      _slides[i],
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(
+                        0,
+                        -0.15,
+                      ), // keep faces visible
+                      gaplessPlayback: true,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-              ),
+                );
+              }),
               // ── Scrims: readability without hiding the photos ─────────
               const _Scrim(),
               // ── Foreground content ─────────────────────────────────────
