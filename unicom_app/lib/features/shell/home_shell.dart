@@ -50,7 +50,7 @@ class HomeShell extends ConsumerWidget {
                   color: Palette.cyan,
                   size: 24,
                 ),
-                unselectedIconTheme: IconThemeData(
+                unselectedIconTheme: const IconThemeData(
                   color: Palette.textMuted,
                   size: 24,
                 ),
@@ -64,8 +64,8 @@ class HomeShell extends ConsumerWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
-                leading: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                leading: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Icon(
                     Icons.translate_rounded,
                     color: Palette.cyan,

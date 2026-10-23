@@ -17,7 +17,7 @@ class OnboardingScreen extends StatelessWidget {
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: RadialGradient(
-            center: const Alignment(0.85, -0.85),
+            center: Alignment(0.85, -0.85),
             radius: 1.5,
             colors: [Color(0xFF0C3A44), Palette.welcome2],
           ),
@@ -60,7 +60,7 @@ class OnboardingScreen extends StatelessWidget {
                           children: [
                             const UniComLogo(size: 54, animate: true),
                             const SizedBox(height: 8),
-                            Text(
+                            const Text(
                               'ONE WORLD. EVERY LANGUAGE.',
                               style: TextStyle(
                                 color: Palette.teal03,

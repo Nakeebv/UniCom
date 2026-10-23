@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils.dart' show App;
 import '../../core/theme/palette.dart';
 import '../../data/backend_base.dart';
-import '../../data/models/language.dart';
 import '../../providers.dart';
 import '../../data/models/voice_catalog.dart';
 import '../../shared/widgets/kit_scaffold.dart';
@@ -121,7 +120,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              Divider(color: Palette.border),
+              const Divider(color: Palette.border),
               // Language row tile
               _TileRow(
                 icon: Icons.g_translate_rounded,
@@ -164,7 +163,7 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: r.onTap,
                 ),
               const SizedBox(height: 12),
-              _TileRow(
+              const _TileRow(
                 icon: Icons.auto_awesome_rounded,
                 title: App.name,
                 value: 'v${App.version} · demo',

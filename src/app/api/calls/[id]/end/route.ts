@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { calls } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
@@ -19,7 +19,7 @@ export async function POST(_r: Request, { params }: { params: Promise<{ id: stri
   await db
     .update(calls)
     .set({ status: "ended", endedAt: new Date() })
-    .where(or(eq(calls.id, id), eq(calls.id, id)));
+    .where(eq(calls.id, id));
   publish({ kind: "call", conversationId: "", callId: id, status: "ended", participants: [call.callerId, call.calleeId] } as never);
   return NextResponse.json({ ok: true });
 }

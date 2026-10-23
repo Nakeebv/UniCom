@@ -161,7 +161,9 @@ class _UniComAppState extends ConsumerState<UniComApp> {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: _router,
-      builder: (context, child) => _CallRinger(child: child ?? const SizedBox.shrink()),
+      builder:
+          (context, child) =>
+              _CallRinger(child: child ?? const SizedBox.shrink()),
     );
   }
 }
@@ -175,7 +177,8 @@ class _CallRinger extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
-    final call = backend.incomingCall;
+    // Only ring for signed-in live users; never overlay the login flow.
+    final call = backend.isSignedIn ? backend.incomingCall : null;
     return Stack(
       children: [
         child,

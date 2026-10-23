@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
@@ -10,10 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/utils.dart';
 import '../demo/demo_translator.dart';
 import '../backend_base.dart';
-import '../models/conversation.dart';
-import '../models/language.dart';
-import '../models/message.dart';
-import '../models/user.dart';
 
 /// In-memory demo backend + orchestration engine.
 ///
@@ -33,51 +28,63 @@ class MockBackend extends UniBackend {
   final Random _rnd = Random();
 
   // ── Session ──────────────────────────────────────────────────────────────
+  @override
   UserProfile? me;
   SharedPreferences? prefs;
+  @override
   ThemeMode themeMode = ThemeMode.dark;
 
   // ── Translation & playback preferences ──────────────────────────────────
   /// Incoming messages/voice notes translate automatically. Off = manual
   /// via the View-translation control or Retry.
+  @override
   bool autoTranslate = true;
 
   /// Auto-play translated voice audio when it becomes ready. Off by
   /// default — unexpected sound is a privacy and etiquette hazard.
+  @override
   bool autoPlayTranslated = false;
 
   /// When both original and translated audio exist, prefer playing the
   /// original first.
+  @override
   bool preferOriginalAudio = false;
 
   /// Playback speed for voice notes (0.75–2.0).
+  @override
   double playbackRate = 1.0;
 
+  @override
   Future<void> setAutoTranslate(bool value) async {
     autoTranslate = value;
     await prefs?.setBool('pref.autoTranslate', value);
     notifyListeners();
   }
 
+  @override
   Future<void> setAutoPlayTranslated(bool value) async {
     autoPlayTranslated = value;
     await prefs?.setBool('pref.autoPlayTranslated', value);
     notifyListeners();
   }
 
+  @override
   Future<void> setPreferOriginalAudio(bool value) async {
     preferOriginalAudio = value;
     await prefs?.setBool('pref.preferOriginalAudio', value);
     notifyListeners();
   }
 
+  @override
   Future<void> setPlaybackRate(double value) async {
     playbackRate = value.clamp(0.5, 2.0);
     await prefs?.setDouble('pref.playbackRate', playbackRate);
     notifyListeners();
   }
 
+  @override
   bool get isSignedIn => me != null;
+  @override
   bool get onboarded => me != null && prefs?.getString('pref.language') != null;
 
   // ── Stores ───────────────────────────────────────────────────────────────
@@ -91,6 +98,7 @@ class MockBackend extends UniBackend {
   int _voiceCounter = 0;
 
   // ── Queries ──────────────────────────────────────────────────────────────
+  @override
   List<Conversation> get conversations {
     final list = _conversations.values.toList();
     list.sort((a, b) {
@@ -101,22 +109,27 @@ class MockBackend extends UniBackend {
     return list;
   }
 
+  @override
   Conversation? conversationOf(String id) => _conversations[id];
 
+  @override
   List<Message> messagesOf(String conversationId) =>
       (_messages[conversationId]?.values.toList() ?? [])
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+  @override
   Message? lastMessageOf(String conversationId) {
     final list = messagesOf(conversationId);
     return list.isEmpty ? null : list.last;
   }
 
+  @override
   int unreadCount(String conversationId) =>
       messagesOf(conversationId)
           .where((m) => m.senderId != me?.id && !_isRead(conversationId, m))
           .length;
 
+  @override
   int get totalUnread =>
       _conversations.keys.fold(0, (n, id) => n + unreadCount(id));
 
@@ -133,9 +146,11 @@ class MockBackend extends UniBackend {
     return null;
   }
 
+  @override
   bool isBlocked(UserProfile user) => _blockedIds.contains(user.id);
 
   // ── Boot / persistence ───────────────────────────────────────────────────
+  @override
   Future<void> load() async {
     prefs = await SharedPreferences.getInstance();
     final raw = prefs!.getString('me.profile');
@@ -182,6 +197,7 @@ class MockBackend extends UniBackend {
 
   LanguageInfo get myLanguage => LanguageRegistry.of(me?.languageCode);
 
+  @override
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode = mode;
     await prefs?.setInt('ui.themeMode', mode.index);
@@ -189,6 +205,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Auth (mock) ──────────────────────────────────────────────────────────
+  @override
   Future<void> register({
     required String name,
     required String username,
@@ -207,6 +224,7 @@ class MockBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   Future<void> signIn(String email, {String? password}) async {
     if (me == null) {
       final guessed = email
@@ -226,6 +244,7 @@ class MockBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   Future<void> signOut() async {
     me = null;
     _conversations.clear();
@@ -239,6 +258,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Preferences ──────────────────────────────────────────────────────────
+  @override
   Future<void> setLanguage(String code) async {
     if (me == null) return;
     me = me!.copyWith(languageCode: code, speechLanguageCode: code);
@@ -247,12 +267,14 @@ class MockBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   Future<void> setSpeechLanguage(String code) async {
     me = me?.copyWith(speechLanguageCode: code);
     await _persistProfile();
     notifyListeners();
   }
 
+  @override
   Future<void> setVoice(String voiceId) async {
     me = me?.copyWith(voiceId: voiceId);
     await _persistProfile();
@@ -270,6 +292,7 @@ class MockBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   Future<void> setPrivacyFlag({
     bool? readReceipts,
     bool? lastSeenVisible,
@@ -346,6 +369,7 @@ class MockBackend extends UniBackend {
     ),
   ];
 
+  @override
   UserProfile? contactById(String id) {
     for (final c in _demoContacts) {
       if (c.id == id) return c;
@@ -354,9 +378,11 @@ class MockBackend extends UniBackend {
   }
 
   /// Instance view of the demo contact book (screens use this).
+  @override
   List<UserProfile> get contacts => MockBackend._demoContacts;
 
   // ── Conversations ────────────────────────────────────────────────────────
+  @override
   Conversation openWith(UserProfile other) {
     for (final c in _conversations.values) {
       if (c.members.isNotEmpty && c.members.first.id == other.id) return c;
@@ -364,6 +390,7 @@ class MockBackend extends UniBackend {
     return createConversation(other);
   }
 
+  @override
   Conversation createConversation(UserProfile other) {
     final conv = Conversation(
       id: newId('conv'),
@@ -376,12 +403,14 @@ class MockBackend extends UniBackend {
   }
 
   /// Seeds the demo world once per session (safe after app restarts).
+  @override
   void ensureSeeded() {
     if (_seeded) return;
     seedConversations();
   }
 
   /// Seeds a rich demo world relative to the signed-in user's language.
+  @override
   void seedConversations() {
     if (me == null) return;
     final now = DateTime.now();
@@ -552,6 +581,7 @@ class MockBackend extends UniBackend {
   }
 
   /// Creates a group from the contacts screen selection.
+  @override
   Conversation createGroup(String title, List<String> memberIds) {
     final members = <UserProfile>[
       for (final id in memberIds)
@@ -571,6 +601,7 @@ class MockBackend extends UniBackend {
   }
 
   /// Swipe-to-delete on Home: clears every message but keeps the thread.
+  @override
   void clearConversation(String conversationId) {
     _messages.remove(conversationId);
     _replyStreaks.remove(conversationId);
@@ -578,6 +609,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Polls ────────────────────────────────────────────────────────────────
+  @override
   Message createPoll(
     String conversationId,
     String question,
@@ -624,6 +656,7 @@ class MockBackend extends UniBackend {
   }
 
   /// Cast or switch my (or, for simulation, anyone's) vote on a poll.
+  @override
   void votePoll(
     String conversationId,
     String messageId,
@@ -703,6 +736,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Read state / startup translation ─────────────────────────────────────
+  @override
   void markRead(String conversationId) {
     _lastReadAt[conversationId] = DateTime.now();
     _translateUnreadIncoming(conversationId);
@@ -743,6 +777,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Messaging pipeline ───────────────────────────────────────────────────
+  @override
   void sendMessage(String conversationId, String text, {String? clientKey}) {
     final conv = _conversations[conversationId];
     final meUser = me;
@@ -807,6 +842,7 @@ class MockBackend extends UniBackend {
   }
 
   /// Manual retry entry point (bubble → "Retry").
+  @override
   void resendTranslation(String messageId, String targetLanguage) {
     final m = messageById(messageId);
     if (m == null) return;
@@ -924,6 +960,7 @@ class MockBackend extends UniBackend {
   }
 
   // ── Voice pipeline ───────────────────────────────────────────────────────
+  @override
   Message sendVoiceNote(
     String conversationId,
     Duration duration,
@@ -1078,6 +1115,7 @@ class MockBackend extends UniBackend {
     }
   }
 
+  @override
   Future<void> retryVoiceSpeech(String messageId) async {
     final m = messageById(messageId);
     if (m == null || m.voice == null) return;
@@ -1104,23 +1142,27 @@ class MockBackend extends UniBackend {
   }
 
   // ── Safety ───────────────────────────────────────────────────────────────
+  @override
   Future<void> blockUser(String userId) async {
     _blockedIds.add(userId);
     await prefs?.setStringList('safety.blocked', _blockedIds.toList());
     notifyListeners();
   }
 
+  @override
   Future<void> unblockUser(String userId) async {
     _blockedIds.remove(userId);
     await prefs?.setStringList('safety.blocked', _blockedIds.toList());
     notifyListeners();
   }
 
+  @override
   bool reportMessage(String messageId, String reason) {
     debugPrint('[unicom:report] message=$messageId reason=$reason');
     return true;
   }
 
+  @override
   void deleteMessage(String messageId) {
     _mutate(messageId, (m) => m.copyWith(deleted: true));
     notifyListeners();

@@ -111,7 +111,7 @@ class _WaveformViewState extends State<WaveformView> {
               // Wave strip occupies the middle; account for the play button
               // (size + 10 gutter) and trailing clock gutter (~44) on tap.
               final lead = (widget.compact ? 34 : 40) + 10;
-              final trail = 44.0;
+              const trail = 44.0;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapUp: (d) {

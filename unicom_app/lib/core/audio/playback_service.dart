@@ -44,8 +44,9 @@ class VoicePlaybackController {
   }) async {
     final key =
         '$cacheKey|${url ?? filePath ?? 'demo'}|${declaredDuration.inMilliseconds}';
-    if (_loadedKey == key && _player != null)
+    if (_loadedKey == key && _player != null) {
       return _player!.duration ?? declaredDuration;
+    }
 
     await dispose();
     _completed = false;

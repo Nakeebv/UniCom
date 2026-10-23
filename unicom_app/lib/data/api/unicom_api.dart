@@ -215,16 +215,15 @@ class UniComApi {
     final data = await session.post(
       '/api/media',
       body: {
-        'base64': base64Encode(
-          bytes ?? (await File(filePath!).readAsBytes()),
-        ),
+        'base64': base64Encode(bytes ?? (await File(filePath!).readAsBytes())),
         // Recorder output: .m4a/AAC on mobile, webm/opus on web.
         'mimeType': mimeType ?? 'audio/mp4',
         'durationMs': durationMs,
       },
     );
-    if (data is Map && data['asset_id'] is String)
+    if (data is Map && data['asset_id'] is String) {
       return data['asset_id'] as String;
+    }
     throw ApiError(500, 'media upload returned no asset id');
   }
 
@@ -275,10 +274,10 @@ class UniComApi {
     required String calleeId,
     String callType = 'audio',
   }) async {
-    final data = await session.post('/api/calls', body: {
-      'calleeId': calleeId,
-      'callType': callType,
-    });
+    final data = await session.post(
+      '/api/calls',
+      body: {'calleeId': calleeId, 'callType': callType},
+    );
     return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
@@ -287,8 +286,9 @@ class UniComApi {
     return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
-  Future<void> acceptCall(String callId) async {
-    await session.post('/api/calls/$callId/accept');
+  Future<Map<String, dynamic>> acceptCall(String callId) async {
+    final data = await session.post('/api/calls/$callId/accept');
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
   Future<void> declineCall(String callId) async {

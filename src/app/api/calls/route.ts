@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     .where(and(eq(calls.status, "ringing"), or(eq(calls.callerId, me.id), eq(calls.calleeId, me.id))));
 
   const id = newId("call");
-  const room = `call_${id}`;
+  const room = id; // id already carries the call_ prefix
   await db.insert(calls).values({
     id,
     callerId: me.id,

@@ -5,6 +5,8 @@
 ///    completion are genuine.
 ///  • Web: `demo_audio_stub.dart` returns no source; the UI presents an
 ///    honest "playback unavailable in the web demo" state.
+library;
+
 export 'demo_audio_stub.dart' if (dart.library.io) 'demo_audio_io.dart';
 
 /// Shared helper mirroring the vault contract for callers.

@@ -73,15 +73,16 @@ class _RecorderOverlayState extends State<RecorderOverlay>
     }
     setState(() => _phase = RecordingPhase.requestingPermission);
     try {
-      var permission = await _service
-          .checkPermission()
-          .timeout(const Duration(seconds: 8), onTimeout: () => MicPermission.unknown);
+      var permission = await _service.checkPermission().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => MicPermission.unknown,
+      );
       if (permission == MicPermission.denied ||
           permission == MicPermission.unknown) {
-        permission = await _service
-            .requestPermission()
-            .timeout(const Duration(seconds: 45),
-                onTimeout: () => MicPermission.denied);
+        permission = await _service.requestPermission().timeout(
+          const Duration(seconds: 45),
+          onTimeout: () => MicPermission.denied,
+        );
       }
       if (!mounted) return;
       if (permission == MicPermission.permanentlyDenied) {
@@ -101,10 +102,10 @@ class _RecorderOverlayState extends State<RecorderOverlay>
         return;
       }
 
-      await _service
-          .start()
-          .timeout(const Duration(seconds: 12),
-              onTimeout: () => throw StateError('start timed out'));
+      await _service.start().timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => throw StateError('start timed out'),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -124,8 +125,9 @@ class _RecorderOverlayState extends State<RecorderOverlay>
     setState(() => _phase = RecordingPhase.recording);
     _pulse.repeat(reverse: true);
     _clock = Timer.periodic(const Duration(milliseconds: 200), (t) {
-      if (mounted)
+      if (mounted) {
         setState(() => _elapsed += const Duration(milliseconds: 200));
+      }
     });
   }
 
@@ -571,7 +573,7 @@ class _RecorderOverlayState extends State<RecorderOverlay>
           child: Container(
             width: 96,
             height: 96,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: Palette.brand,
               shape: BoxShape.circle,
             ),

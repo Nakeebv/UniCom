@@ -151,7 +151,7 @@ class UniSession {
   /// fetches the actual audio bytes from R2 without the session cookie.
   Future<Uri?> resolvePresigned(String mediaPath) async {
     try {
-      final data = await get('$mediaPath', {'url': '1'});
+      final data = await get(mediaPath, {'url': '1'});
       final u =
           data is Map && data['url'] is String ? data['url'] as String : null;
       return u == null ? null : Uri.parse(u);

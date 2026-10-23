@@ -496,7 +496,7 @@ class ConversationTile extends ConsumerWidget {
                 Container(
                   width: Layout.avatarMd,
                   height: Layout.avatarMd,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Palette.cyanSoft,
                     shape: BoxShape.circle,
                   ),

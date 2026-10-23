@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
 import '../../data/backend_base.dart';
-import '../../data/models/language.dart';
-import '../../data/models/user.dart';
 import '../../providers.dart';
 import '../../shared/widgets/kit_scaffold.dart';
 import '../../shared/widgets/sheets.dart';
@@ -93,7 +91,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               const SizedBox(height: 10),
               Text(
                 'Contacts on UniCom • ${people.length}',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w900,
                   letterSpacing: .7,
@@ -260,7 +258,7 @@ class _PersonTile extends ConsumerWidget {
                       person.previewVisible
                           ? '@${person.username} · ${lang.flag} ${lang.nativeName}'
                           : '@${person.username}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12.5,
                         color: Palette.textSecondary,
                       ),

@@ -110,7 +110,7 @@ class CallsSoonScreen extends StatelessWidget {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
                 children: [
-                  Text(
+                  const Text(
                     'Recent',
                     style: TextStyle(
                       fontSize: 11.5,

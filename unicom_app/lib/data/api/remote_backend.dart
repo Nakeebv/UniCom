@@ -7,9 +7,6 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../backend_base.dart';
-import '../models/conversation.dart';
-import '../models/message.dart';
-import '../models/user.dart';
 import 'uni_session.dart';
 import 'unicom_api.dart';
 
@@ -224,10 +221,13 @@ class RemoteBackend extends UniBackend {
     await api.endCall(callId);
   }
 
-  Future<void> acceptCallById(String callId) async {
-    await api.acceptCall(callId);
+  /// Accepts and returns the server-assigned room so the callee joins the
+  /// SAME LiveKit room as the caller (a local room name would never connect).
+  Future<String?> acceptCallById(String callId) async {
+    final res = await api.acceptCall(callId);
     _incomingCall = null;
     notifyListeners();
+    return res['room'] as String?;
   }
 
   Future<void> declineCallById(String callId) async {
@@ -398,10 +398,9 @@ class RemoteBackend extends UniBackend {
   Message _mapMessage(Map<String, dynamic> v, String myLang, String myId) {
     final kind = v['type'] == 'voice' ? MessageKind.voice : MessageKind.text;
     final viewer = (v['viewer'] ?? {}) as Map<String, dynamic>;
-    final translation =
-        (viewer['translation'] ?? null) as Map<String, dynamic>?;
-    final job = (viewer['voiceJob'] ?? null) as Map<String, dynamic>?;
-    final media = (v['media'] ?? null) as Map<String, dynamic>?;
+    final translation = (viewer['translation']) as Map<String, dynamic>?;
+    final job = (viewer['voiceJob']) as Map<String, dynamic>?;
+    final media = (v['media']) as Map<String, dynamic>?;
     final receipts = (v['receipts'] ?? {}) as Map<String, dynamic>;
     final status = ((translation?['status']) ?? '') as String;
     final mine = v['senderId'] == myId;
@@ -951,6 +950,7 @@ class RemoteBackend extends UniBackend {
     await p.setString('remote.me.cache', m.id); // presence marker only
   }
 
+  @override
   bool get autoTranslate => _autoTranslate;
   @override
   Future<void> setAutoTranslate(bool value) async {
@@ -959,6 +959,7 @@ class RemoteBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   bool get autoPlayTranslated => _autoPlayTranslated;
   @override
   Future<void> setAutoPlayTranslated(bool value) async {
@@ -967,6 +968,7 @@ class RemoteBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   bool get preferOriginalAudio => _preferOriginalAudio;
   @override
   Future<void> setPreferOriginalAudio(bool value) async {
@@ -975,6 +977,7 @@ class RemoteBackend extends UniBackend {
     notifyListeners();
   }
 
+  @override
   double get playbackRate => _playbackRate;
   @override
   Future<void> setPlaybackRate(double value) async {
@@ -1013,7 +1016,7 @@ class RemoteBackend extends UniBackend {
         (m) => m.id == myId,
         orElse: () => _me!,
       );
-      final last = (s['lastMessage'] ?? null) as Map<String, dynamic>?;
+      final last = (s['lastMessage']) as Map<String, dynamic>?;
       final unread = (s['unreadCount'] ?? 0) as int;
 
       _unread[id] = unread;
@@ -1104,8 +1107,9 @@ class RemoteBackend extends UniBackend {
           ),
     );
     if (_activeConversation == conversationId &&
-        conversationId.startsWith('conv'))
+        conversationId.startsWith('conv')) {
       await _withAuth(() => api.markRead(conversationId));
+    }
     _unread[conversationId] = 0;
     notifyListeners();
   }

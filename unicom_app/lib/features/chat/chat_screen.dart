@@ -5,10 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/theme.dart';
 import '../../core/utils.dart';
-import '../../data/models/conversation.dart';
-import '../../data/models/language.dart';
-import '../../data/models/message.dart';
-import '../../data/models/user.dart';
 import '../../data/backend_base.dart';
 import '../../providers.dart';
 import '../../shared/widgets/kit_scaffold.dart';
@@ -278,11 +274,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomRight: Radius.circular(16),
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const TypingDots(),
-            const SizedBox(width: 8),
+            TypingDots(),
+            SizedBox(width: 8),
             Text(
               'typing…',
               style: TextStyle(

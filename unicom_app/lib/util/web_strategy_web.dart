@@ -1,3 +1,3 @@
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-void useHashUrls() => setUrlStrategy(HashUrlStrategy());
+void useHashUrls() => setUrlStrategy(const HashUrlStrategy());

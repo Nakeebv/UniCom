@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
 import '../../data/backend_base.dart';
-import '../../data/models/language.dart';
-import '../../data/models/user.dart';
 import '../../providers.dart';
 import '../../shared/widgets/sheets.dart';
 import '../../shared/widgets/ui_kit.dart';
@@ -163,13 +161,13 @@ class ProfileViewScreen extends ConsumerWidget {
                   value: '${lang.nativeName} (${lang.name})',
                   trailing: lang.note,
                 ),
-                _DetailTile(
+                const _DetailTile(
                   icon: Icons.share_rounded,
                   label: 'Media, links & docs',
                   value: 'Shared in this chat (demo)',
                 ),
                 const SizedBox(height: 18),
-                Divider(color: Palette.border),
+                const Divider(color: Palette.border),
                 blocked
                     ? _DangerLink(
                       label: 'Unblock ${user.name.split(' ').first}',
@@ -336,7 +334,7 @@ class _DetailTile extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
                       trailing!,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11.5,
                         color: Palette.textMuted,
                       ),

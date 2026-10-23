@@ -79,7 +79,7 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            Text(
+            const Text(
               'Group Title',
               style: TextStyle(
                 color: Palette.iris,
@@ -99,7 +99,7 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
             const SizedBox(height: 10),
             Text(
               'Members · ${_selected.length} selected',
-              style: TextStyle(
+              style: const TextStyle(
                 color: Palette.iris,
                 fontWeight: FontWeight.w700,
                 fontSize: 13.5,

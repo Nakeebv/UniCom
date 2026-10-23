@@ -28,11 +28,10 @@ class WebRecordingService implements AudioRecordingService {
   @override
   Future<MicPermission> requestPermission() async {
     try {
-      if (_stream == null) {
-        _stream = await web.window.navigator.mediaDevices
-            .getUserMedia(web.MediaStreamConstraints(audio: true.toJS))
-            .toDart;
-      }
+      _stream ??=
+          await web.window.navigator.mediaDevices
+              .getUserMedia(web.MediaStreamConstraints(audio: true.toJS))
+              .toDart;
       return MicPermission.granted;
     } catch (_) {
       return MicPermission.denied;
@@ -41,16 +40,16 @@ class WebRecordingService implements AudioRecordingService {
 
   @override
   Future<void> start() async {
-    if (_stream == null) {
-      _stream = await web.window.navigator.mediaDevices
-          .getUserMedia(web.MediaStreamConstraints(audio: true.toJS))
-          .toDart;
-    }
+    _stream ??=
+        await web.window.navigator.mediaDevices
+            .getUserMedia(web.MediaStreamConstraints(audio: true.toJS))
+            .toDart;
     _chunks.clear();
     _recorder = web.MediaRecorder(_stream!);
-    _recorder!.ondataavailable = ((web.BlobEvent e) {
-      if (e.data.size > 0) _chunks.add(e.data);
-    }).toJS;
+    _recorder!.ondataavailable =
+        ((web.BlobEvent e) {
+          if (e.data.size > 0) _chunks.add(e.data);
+        }).toJS;
     _recorder!.start(250);
     _startedAt = DateTime.now();
     // Lightweight level meter (browser analyser integration pending); the
@@ -67,23 +66,27 @@ class WebRecordingService implements AudioRecordingService {
   Future<RecordingResult?> stop() async {
     _tick?.cancel();
     final completer = Completer<void>();
-    _recorder!.onstop = ((web.Event _) {
-      if (!completer.isCompleted) completer.complete();
-    }).toJS;
+    _recorder!.onstop =
+        ((web.Event _) {
+          if (!completer.isCompleted) completer.complete();
+        }).toJS;
     try {
       _recorder!.stop();
     } catch (_) {
       if (!completer.isCompleted) completer.complete();
     }
-    await completer.future
-        .timeout(const Duration(seconds: 3), onTimeout: () {});
+    await completer.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
     final blob = web.Blob(
       _chunks.toJS,
       web.BlobPropertyBag(type: 'audio/webm;codecs=opus'),
     );
-    final duration = _startedAt == null
-        ? Duration.zero
-        : DateTime.now().difference(_startedAt!);
+    final duration =
+        _startedAt == null
+            ? Duration.zero
+            : DateTime.now().difference(_startedAt!);
     _stopTracks();
     if (duration.inMilliseconds < 300 || blob.size < 128) return null;
     final bytes = await _blobBytes(blob);

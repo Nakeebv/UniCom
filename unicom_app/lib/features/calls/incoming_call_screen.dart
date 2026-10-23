@@ -219,15 +219,36 @@ class IncomingCallOverlay extends ConsumerWidget {
           children: [
             const Spacer(flex: 3),
             if (user != null)
-              UserAvatar(name: user.name, gradient: user.gradient, userId: user.id, imageUrl: user.avatarUrl, size: 120, showOnline: false)
+              UserAvatar(
+                name: user.name,
+                gradient: user.gradient,
+                userId: user.id,
+                imageUrl: user.avatarUrl,
+                size: 120,
+                showOnline: false,
+              )
             else
-              const Icon(Icons.person_rounded, color: Colors.white38, size: 120),
+              const Icon(
+                Icons.person_rounded,
+                color: Colors.white38,
+                size: 120,
+              ),
             const SizedBox(height: 20),
-            Text(name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               isVideo ? 'Incoming video call…' : 'Incoming voice call…',
-              style: TextStyle(color: Colors.white.withValues(alpha: .75), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: .75),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const Spacer(flex: 2),
             Row(
@@ -244,9 +265,15 @@ class IncomingCallOverlay extends ConsumerWidget {
                   background: Palette.online,
                   label: 'Accept',
                   onTap: () async {
-                    await backend.asRemote?.acceptCallById(callId);
+                    final room = await backend.asRemote?.acceptCallById(callId);
                     if (context.mounted) {
-                      context.push('/call/live/$callerId?call=$callId${isVideo ? '&video=1' : ''}');
+                      final q = [
+                        if (room != null && room.isNotEmpty)
+                          'room=${Uri.encodeComponent(room)}',
+                        'call=$callId',
+                        if (isVideo) 'video=1',
+                      ].join('&');
+                      context.push('/call/live/$callerId?$q');
                     }
                   },
                 ),
@@ -261,7 +288,12 @@ class IncomingCallOverlay extends ConsumerWidget {
 }
 
 class _OverlayAction extends StatelessWidget {
-  const _OverlayAction({required this.icon, required this.background, required this.label, required this.onTap});
+  const _OverlayAction({
+    required this.icon,
+    required this.background,
+    required this.label,
+    required this.onTap,
+  });
   final IconData icon;
   final Color background;
   final String label;
@@ -277,11 +309,21 @@ class _OverlayAction extends StatelessWidget {
           Container(
             width: 66,
             height: 66,
-            decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: background,
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: .9), fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .9),
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );
