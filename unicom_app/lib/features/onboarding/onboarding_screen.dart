@@ -27,10 +27,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'assets/onboarding/welcome_1.jpg', // portrait — strongest single subject
     'assets/onboarding/welcome_2.jpg', // leaning out of car — candid energy
     'assets/onboarding/welcome_3.jpg', // group laughing — social warmth
+    'assets/onboarding/welcome_4.jpg', // soft-lit portrait
+    'assets/onboarding/welcome_5.jpg', // culture — vibrant group
   ];
 
-  static const _slideSeconds = Duration(seconds: 6);
-  static const _fade = Duration(milliseconds: 1100);
+  static const _slideSeconds = Duration(seconds: 10);
+  static const _fade = Duration(milliseconds: 900);
 
   int _index = 0;
   late final _timer = Timer.periodic(_slideSeconds, (_) {
@@ -61,6 +63,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // True full-bleed: the slideshow paints behind the status bar/notch;
+      // only the foreground content respects SafeArea.
+      primary: false,
+      extendBody: true,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 600;
