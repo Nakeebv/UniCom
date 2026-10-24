@@ -25,6 +25,9 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
   CallSession? _session;
   String? _room;
   String? _callId;
+  RemoteBackend? _cachedRemote;
+  Timer? _statusPoll;
+  bool _completedCleanly = false;
 
   @override
   void didChangeDependencies() {
@@ -48,27 +51,61 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
       api: remote.api,
       room: _room!,
       isVideo: isVideo,
+      callId: callId,
     );
     _session = session;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) session.connect(peerId: peerId);
     });
+    if (callId != null && _statusPoll == null) {
+      _statusPoll = Timer.periodic(const Duration(milliseconds: 2500), (
+        _,
+      ) async {
+        final remote = _cachedRemote;
+        final cid = _callId;
+        if (remote == null || cid == null || _session == null) return;
+        if (_session!.phase == CallPhase.ended) return;
+        try {
+          final st = await remote.api.getCallStatus(cid);
+          final status = st?['status'] as String?;
+          if (status == 'declined' ||
+              status == 'cancelled' ||
+              status == 'ended' ||
+              status == 'missed') {
+            // Peer declined / hung up / never answered → clean up + leave.
+            if (mounted) _hangUpAndPop(context, reason: status);
+          }
+        } catch (_) {}
+      });
+    }
   }
 
   @override
   void dispose() {
+    _statusPoll?.cancel();
+    // Leaving via back button while the invite still rings = cancel.
+    final remote = _cachedRemote;
+    final cid = _callId;
+    final completedCleanly = _completedCleanly;
+    if (!completedCleanly && remote != null && cid != null) {
+      unawaited(remote.api.declineCall(cid).catchError((_) {}));
+    }
     _session?.dispose();
     super.dispose();
   }
 
-  RemoteBackend? _cachedRemote;
-
-  Future<void> _hangUpAndPop(BuildContext context) async {
+  Future<void> _hangUpAndPop(BuildContext context, {String? reason}) async {
+    _completedCleanly = true;
+    _statusPoll?.cancel();
     await _session?.hangUp();
     final remote = _cachedRemote;
     final callId = _callId;
     if (callId != null && remote != null) {
-      unawaited(remote.endCallById(callId));
+      if (reason != null) {
+        // Peer-driven end: authoritative status already recorded server-side.
+      } else {
+        unawaited(remote.endCallById(callId));
+      }
     }
     if (context.mounted) context.pop();
   }

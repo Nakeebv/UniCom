@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, ne, or } from "drizzle-orm";
+import { and, desc, eq, lt, ne, or } from "drizzle-orm";
 import { db } from "@/db";
 import { calls, conversationMembers, userBlocks } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
@@ -60,11 +60,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Messaging is disabled between these accounts" }, { status: 403 });
   }
 
-  // Supersede any still-ringing calls between the two.
+  // Supersede any still-ringing calls between exactly this pair (never
+  // touch other people's incoming calls).
   await db
     .update(calls)
     .set({ status: "cancelled", endedAt: new Date() })
-    .where(and(eq(calls.status, "ringing"), or(eq(calls.callerId, me.id), eq(calls.calleeId, me.id))));
+    .where(
+      and(
+        eq(calls.status, "ringing"),
+        or(
+          and(eq(calls.callerId, me.id), eq(calls.calleeId, calleeId)),
+          and(eq(calls.callerId, calleeId), eq(calls.calleeId, me.id)),
+        ),
+      ),
+    );
 
   const id = newId("call");
   const room = id; // id already carries the call_ prefix
@@ -91,6 +100,12 @@ export async function POST(request: Request) {
 export async function GET() {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // Sweep: expired rings are 'missed' so stale overlays can't resurrect.
+  await db
+    .update(calls)
+    .set({ status: "missed", endedAt: new Date() })
+    .where(and(eq(calls.status, "ringing"), lt(calls.expiresAt, new Date())));
   const [incoming] = await db
     .select()
     .from(calls)

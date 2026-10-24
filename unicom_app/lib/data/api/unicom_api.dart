@@ -310,21 +310,22 @@ class UniComApi {
     await session.post('/api/calls/$callId/decline');
   }
 
+  /// Authoritative status for one call (participant-only endpoint).
+  Future<Map<String, dynamic>?> getCallStatus(String callId) async {
+    final data = await session.get('/api/calls/$callId');
+    return data is Map<String, dynamic> ? data : null;
+  }
+
   Future<void> endCall(String callId) async {
     await session.post('/api/calls/$callId/end');
   }
 
-  /// Mints a room-scoped LiveKit token server-side (authorization + block
-  /// checks happen there). Returns null when calling isn't configured.
-  Future<Map<String, dynamic>?> callToken({
-    required String peerId,
-    required String room,
-    String callType = 'audio',
-  }) async {
+  /// Mints a room-scoped LiveKit token for a call the user participates in.
+  Future<Map<String, dynamic>?> callToken({required String callId}) async {
     try {
       final data = await session.post(
         '/api/calls/token',
-        body: {'peerId': peerId, 'room': room, 'callType': callType},
+        body: {'callId': callId},
       );
       return data is Map<String, dynamic> ? data : null;
     } on ApiError catch (e) {
