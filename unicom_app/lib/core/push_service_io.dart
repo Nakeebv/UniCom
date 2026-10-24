@@ -110,17 +110,38 @@ class PushServiceImpl implements PushService {
       _handleTapMap(m.data);
     });
 
-    // Cold start from a notification.
-    final initial = await _messaging.getInitialMessage();
-    if (initial != null) _handleTapMap(initial.data);
+    // Cold start from a notification (timeout-guarded: never hang).
+    try {
+      final initial = await _messaging.getInitialMessage().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => null,
+      );
+      if (initial != null) _handleTapMap(initial.data);
+    } catch (_) {}
+
+    _ensureAndroidChannelsToken();
 
     _messaging.onTokenRefresh.listen((t) {
       _token = t;
       debugPrint('[unicom-notification] token refreshed');
       unawaited(_registerToken());
     });
-    _token = await _messaging.getToken();
-    debugPrint('[unicom-notification] token obtained: ${_token != null}');
+  }
+
+  /// Fetch the token without blocking app start; logs the result safely.
+  void _ensureAndroidChannelsToken() {
+    _messaging
+        .getToken()
+        .timeout(const Duration(seconds: 6), onTimeout: () => null)
+        .then((t) {
+          _token = t;
+          debugPrint('[unicom-notification] token obtained: ${_token != null}');
+          unawaited(_registerToken());
+        })
+        .catchError((e) {
+          debugPrint('[unicom-notification] getToken failed: $e');
+          return null;
+        });
   }
 
   /// Attach the authenticated API client and register the current token.

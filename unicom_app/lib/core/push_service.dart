@@ -2,7 +2,8 @@ import '../data/api/unicom_api.dart';
 
 // Resolves to the stub on web, the real implementation on mobile/desktop.
 import 'push_service_stub.dart'
-    if (dart.library.io) 'push_service_io.dart' as impl;
+    if (dart.library.io) 'push_service_io.dart'
+    as impl;
 
 /// Platform-agnostic push service contract.
 ///

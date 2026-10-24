@@ -18,26 +18,29 @@ Future<void> main() async {
   );
 
   // Configure the native audio session for two-way voice BEFORE WebRTC
-  // initializes. Without this, Android plays call audio to the earpiece/
-  // receiver path and the speaker/mouthpiece never behave like a real call.
-  try {
-    // ignore: experimental_member_use
-    await lk.LiveKitClient.initialize(
+  // initializes. Never block first paint on it — a device that stalls here
+  // must still render the UI.
+  unawaited(
+    lk.LiveKitClient.initialize(
       // ignore: experimental_member_use
       initialAudioSessionOptions: const lk.AudioSessionOptions.communication(),
-    );
-  } catch (_) {
-    // Desktop/web report this as unsupported — harmless.
-  }
+    ).timeout(const Duration(seconds: 5), onTimeout: () {}),
+  );
 
   // Hash URLs on web so the hosted build works from any subpath (QR/open).
   if (kIsWeb) {
     useHashUrls();
   }
 
-  // Firebase Cloud Messaging: initialise before runApp so background/tap
-  // handlers are registered early. No-op on web/desktop.
-  await PushService.instance.init();
+  // Firebase Cloud Messaging: initialise in the BACKGROUND. If it hangs (no
+  // Play Services / misconfig) it must not block runApp — that caused a
+  // permanent white screen.
+  unawaited(
+    PushService.instance.init().timeout(
+      const Duration(seconds: 6),
+      onTimeout: () {},
+    ),
+  );
 
   final container = ProviderContainer();
   // Warm the backend without blocking first paint (WhatsApp-like cold
