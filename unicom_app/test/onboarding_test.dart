@@ -22,8 +22,8 @@ void main() {
     expect(find.text('文'), findsNothing);
     expect(find.text('あ'), findsNothing);
 
-    // Restored gradient welcome: only the brand emblem image, no slideshow.
-    expect(find.byType(Image), findsOneWidget);
+    // Restored gradient welcome: brand emblem + the auth background photo.
+    expect(find.byType(Image), findsNWidgets(2));
 
     expect(tester.takeException(), isNull);
   });
