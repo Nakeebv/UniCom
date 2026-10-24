@@ -22,13 +22,9 @@ void main() {
     expect(find.text('文'), findsNothing);
     expect(find.text('あ'), findsNothing);
 
-    // All five slideshow frames stay mounted (stacked crossfade design)
-    // plus the brand emblem image.
-    expect(find.byType(Image), findsNWidgets(6));
+    // Restored gradient welcome: only the brand emblem image, no slideshow.
+    expect(find.byType(Image), findsOneWidget);
 
-    // Slideshow advances: pump past the 10s slide period + fade.
-    await tester.pump(const Duration(seconds: 10));
-    await tester.pump(const Duration(milliseconds: 900));
     expect(tester.takeException(), isNull);
   });
 }

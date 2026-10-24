@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { sessions, userPreferences, users } from "@/db/schema";
 import { newId, newToken } from "@/lib/ids";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/languages";
+import { warmDemoIds } from "@/lib/rate-limit";
 
 export const SESSION_COOKIE = "unicom_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -101,6 +102,8 @@ export async function destroySession(token: string): Promise<void> {
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
+  // Dev-only: refresh the demo-account id cache (no-op when the flag is off).
+  void warmDemoIds();
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;

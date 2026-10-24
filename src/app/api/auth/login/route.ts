@@ -7,12 +7,14 @@ import { ensureSeed } from "@/db/seed";
 import { RULES, clientIp, enforce } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const limited = enforce(RULES.login, clientIp(request));
-  if (limited) return limited;
-  await ensureSeed();
   const body = (await request.json().catch(() => null)) as { username?: string; password?: string } | null;
   const username = (body?.username ?? "").trim().toLowerCase();
   const password = body?.password ?? "";
+
+  // Rate limit keyed by IP+username so a demo account (dev flag) can bypass.
+  const limited = enforce(RULES.login, `${clientIp(request)}:${username}`);
+  if (limited) return limited;
+  await ensureSeed();
 
   const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
   if (!user || !verifyPassword(password, user.passwordHash)) {

@@ -30,6 +30,61 @@ export const RULES = {
   report: { name: "report", limit: 10, windowMs: 60_000 },
 } satisfies Record<string, RateRule>;
 
+/**
+ * Demo/test accounts (comma-separated usernames in DEMO_ACCOUNTS). When
+ * DEV_ALLOW_DEMO_UNLIMITED=true, these identities bypass rate limits so the
+ * team can exercise full flows during QA. Off by default — production must
+ * never set the flag. This affects ONLY rate limiting; authentication,
+ * authorization, membership, and validation remain fully enforced.
+ */
+function demoFlagOn(): boolean {
+  return (process.env.DEV_ALLOW_DEMO_UNLIMITED ?? "").toLowerCase() === "true";
+}
+
+function demoUsernames(): string[] {
+  return (process.env.DEMO_ACCOUNTS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+const globalDemo = globalThis as typeof globalThis & {
+  __demoIds?: Set<string>;
+  __demoIdsAt?: number;
+};
+
+/** Resolves demo-account usernames → user ids (cached 5 min, dev only). */
+export async function warmDemoIds(): Promise<void> {
+  if (!demoFlagOn()) return;
+  const usernames = demoUsernames();
+  if (usernames.length === 0) return;
+  if (globalDemo.__demoIds && Date.now() - (globalDemo.__demoIdsAt ?? 0) < 300_000) {
+    return;
+  }
+  try {
+    const { db } = await import("@/db");
+    const { users } = await import("@/db/schema");
+    const { inArray } = await import("drizzle-orm");
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(inArray(users.username, usernames));
+    globalDemo.__demoIds = new Set(rows.map((r) => r.id));
+    globalDemo.__demoIdsAt = Date.now();
+  } catch {
+    globalDemo.__demoIds = new Set();
+  }
+}
+
+export function isDemoUnlimited(identity: string): boolean {
+  if (!demoFlagOn()) return false;
+  const id = identity.toLowerCase();
+  if (demoUsernames().some((d) => id === d || id.startsWith(`${d}:`) || id.endsWith(`:${d}`))) {
+    return true;
+  }
+  return Boolean(globalDemo.__demoIds?.has(identity));
+}
+
 export type RateResult = {
   allowed: boolean;
   retryAfterSeconds: number;
@@ -94,6 +149,7 @@ export function enforce(
   rule: RateRule,
   identity: string,
 ): NextResponse | null {
+  if (isDemoUnlimited(identity)) return null;
   const r = hit(rule, identity);
   if (r.allowed) return null;
   return NextResponse.json(
