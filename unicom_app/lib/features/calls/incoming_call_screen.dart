@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app.dart';
 import '../../core/theme/palette.dart';
 import '../../providers.dart';
 import '../../shared/widgets/sheets.dart';
@@ -266,14 +267,17 @@ class IncomingCallOverlay extends ConsumerWidget {
                   label: 'Accept',
                   onTap: () async {
                     final room = await backend.asRemote?.acceptCallById(callId);
-                    if (context.mounted) {
+                    // Navigate through the app's global navigator so the push
+                    // can't be lost while this overlay unmounts.
+                    final nav = callNavigatorKey.currentContext;
+                    if (nav != null && nav.mounted) {
                       final q = [
                         if (room != null && room.isNotEmpty)
                           'room=${Uri.encodeComponent(room)}',
                         'call=$callId',
                         if (isVideo) 'video=1',
                       ].join('&');
-                      context.push('/call/live/$callerId?$q');
+                      nav.push('/call/live/$callerId?$q');
                     }
                   },
                 ),

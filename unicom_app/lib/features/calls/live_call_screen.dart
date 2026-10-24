@@ -124,6 +124,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
             return _statusScaffold(
               context,
               session.isVideo ? 'Calling…' : 'Ringing…',
+              video: session.isVideo,
             );
           case CallPhase.reconnecting:
             return _statusScaffold(context, 'Reconnecting…');
@@ -187,37 +188,109 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     BuildContext context,
     String label, {
     bool isError = false,
+    bool video = false,
   }) {
+    final backend = ref.read(backendProvider);
+    final peerId = GoRouterState.of(context).pathParameters['id'] ?? '';
+    final peer = backend.contactById(peerId);
+    final name = peer?.name ?? 'Connecting';
     return Scaffold(
       backgroundColor: Palette.bg,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const Spacer(),
-            Icon(
-              isError
-                  ? Icons.error_outline_rounded
-                  : Icons.wifi_tethering_rounded,
-              size: 46,
-              color: isError ? Palette.danger : Palette.iris,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 26),
-            if (!isError)
-              const SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
+            // Soft radial ambience
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.4),
+                    radius: 1.1,
+                    colors: [Palette.iris.withValues(alpha: .18), Palette.bg],
+                  ),
+                ),
               ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 40),
-              child: _endButton(context),
+            ),
+            Column(
+              children: [
+                const Spacer(flex: 2),
+                // Pulsing avatar
+                if (peer != null)
+                  _PulsingAvatar(
+                    child: UserAvatar(
+                      name: peer.name,
+                      gradient: peer.gradient,
+                      userId: peer.id,
+                      imageUrl: peer.avatarUrl,
+                      size: 128,
+                      showOnline: false,
+                    ),
+                    active: !isError,
+                  )
+                else
+                  const Icon(
+                    Icons.person_rounded,
+                    color: Colors.white38,
+                    size: 128,
+                  ),
+                const SizedBox(height: 26),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.4,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isError
+                          ? Icons.error_outline_rounded
+                          : (video
+                              ? Icons.videocam_rounded
+                              : Icons.phone_rounded),
+                      size: 16,
+                      color: isError ? Palette.danger : Palette.textSecondary,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color:
+                            isError
+                                ? Palette.danger
+                                : Colors.white.withValues(alpha: .8),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (!isError) ...[
+                  const SizedBox(height: 22),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  ),
+                ],
+                const Spacer(flex: 3),
+                _endButton(context),
+                const SizedBox(height: 14),
+                Text(
+                  'End call',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .7),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 44),
+              ],
             ),
           ],
         ),
@@ -251,12 +324,18 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Remote video (or avatar placeholder for audio calls).
+            // Remote video is the primary surface. Distinguish real video from
+            // the honest "waiting / camera off" states so a black tile never
+            // masquerades as a connected video feed.
             Positioned.fill(
               child:
                   session.isVideo && remoteVideo != null
                       ? lk.VideoTrackRenderer(remoteVideo)
-                      : _audioBackdrop(context, peer?.name ?? 'Call'),
+                      : _audioBackdrop(
+                        context,
+                        peer?.name ?? 'Call',
+                        status: session.isVideo ? 'Video is off' : null,
+                      ),
             ),
             // Local preview (PiP) for video calls.
             if (session.isVideo && localVideo != null)
@@ -370,7 +449,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     return null;
   }
 
-  Widget _audioBackdrop(BuildContext context, String name) {
+  Widget _audioBackdrop(BuildContext context, String name, {String? status}) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -393,6 +472,28 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (status != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.videocam_off_rounded,
+                    size: 16,
+                    color: Colors.white54,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    status,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -433,4 +534,79 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+}
+
+/// Gentle expanding-ring pulse behind the avatar while a call is connecting.
+/// Purely decorative and cheap: two rings, no blur, no particles.
+class _PulsingAvatar extends StatefulWidget {
+  const _PulsingAvatar({required this.child, required this.active});
+  final Widget child;
+  final bool active;
+
+  @override
+  State<_PulsingAvatar> createState() => _PulsingAvatarState();
+}
+
+class _PulsingAvatarState extends State<_PulsingAvatar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 190,
+      height: 190,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (widget.active)
+            AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) {
+                final t = _c.value;
+                return CustomPaint(
+                  size: const Size(190, 190),
+                  painter: _RingPulsePainter(progress: t, color: Palette.iris),
+                );
+              },
+            ),
+          widget.child,
+        ],
+      ),
+    );
+  }
+}
+
+class _RingPulsePainter extends CustomPainter {
+  _RingPulsePainter({required this.progress, required this.color});
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    for (final phase in [0.0, 0.5]) {
+      final p = (progress + phase) % 1.0;
+      final radius = 64 + p * 28;
+      final paint =
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..color = color.withValues(alpha: (1 - p) * 0.35);
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPulsePainter old) =>
+      old.progress != progress;
 }

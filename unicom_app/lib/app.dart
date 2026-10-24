@@ -27,6 +27,10 @@ import 'features/shell/home_shell.dart';
 import 'features/splash/splash_screen.dart';
 import 'providers.dart';
 
+/// Global navigator key so call UI (rendered above the router in the
+/// MaterialApp.builder) can push call routes reliably.
+final GlobalKey<NavigatorState> callNavigatorKey = GlobalKey<NavigatorState>();
+
 class UniComApp extends ConsumerStatefulWidget {
   const UniComApp({super.key});
 
@@ -39,6 +43,7 @@ class _UniComAppState extends ConsumerState<UniComApp> {
 
   GoRouter _createRouter() {
     return GoRouter(
+      navigatorKey: callNavigatorKey,
       initialLocation: '/',
       redirect: (context, state) {
         // Read live session state on every navigation attempt — a signup or
