@@ -194,9 +194,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF030A0B),
+      resizeToAvoidBottomInset: true,
       body: AuthBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(26, 20, 26, 30),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
             const SizedBox(height: 10),
             const Center(

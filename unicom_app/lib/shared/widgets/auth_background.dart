@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'brand_photo.dart';
+
 /// Full-bleed photo background + brand scrims shared by the auth screens
 /// (login / register / verify) so they blend with the welcome page.
 ///
-/// Content is centered, capped at [maxWidth], and the surrounding scroll view
-/// keeps it reachable when the viewport is too short (no clipping on small or
-/// landscape screens).
+/// This widget owns the *background only* — the [child] is responsible for its
+/// own scrolling. The previous version nested a [SingleChildScrollView] around
+/// a child [ListView], which produced unbounded-intrinsic layout work on every
+/// keystroke and was the main cause of the sluggish auth screens.
 class AuthBackground extends StatelessWidget {
   const AuthBackground({
     super.key,
@@ -20,37 +23,22 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF030A0B),
-      body: Stack(
+    return ColoredBox(
+      color: const Color(0xFF030A0B),
+      child: Stack(
         fit: StackFit.expand,
         children: [
           // Full-bleed photo, edge to edge behind the status bar.
-          Positioned.fill(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, -0.15),
-              filterQuality: FilterQuality.high,
-              errorBuilder:
-                  (_, _, _) => Container(color: const Color(0xFF0C3A44)),
-            ),
-          ),
+          Positioned.fill(child: BrandPhoto(assetPath: imagePath)),
           // Scrims: global tint + readability gradient over the form zone.
           const Positioned.fill(child: _AuthScrimSafe()),
-          // Foreground form.
+          // Foreground form — the child scrolls itself.
           Positioned.fill(
             child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 26,
-                  vertical: 32,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: maxWidth),
-                    child: child,
-                  ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: child,
                 ),
               ),
             ),
@@ -75,9 +63,9 @@ class _AuthScrimSafe extends StatelessWidget {
             end: Alignment.bottomCenter,
             stops: const [0.0, 0.5, 1.0],
             colors: [
-              const Color(0xFF030A0B).withValues(alpha: .35),
-              const Color(0xFF030A0B).withValues(alpha: .62),
-              const Color(0xFF030A0B).withValues(alpha: .78),
+              const Color(0xFF030A0B).withValues(alpha: .45),
+              const Color(0xFF030A0B).withValues(alpha: .68),
+              const Color(0xFF030A0B).withValues(alpha: .82),
             ],
           ),
         ),

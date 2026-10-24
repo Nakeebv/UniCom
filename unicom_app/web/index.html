@@ -1,46 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="UniCom — chat in every language.">
+  <meta name="theme-color" content="#030A0B">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="unicom">
+  <meta name="apple-mobile-web-app-title" content="UniCom">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>unicom</title>
+  <title>UniCom</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #030A0B; }
+    /* Branded loader shown until Flutter paints its first frame, so a slow
+       network never presents a blank white screen. */
+    #unicom-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      background: radial-gradient(circle at 50% 38%, #0C3A44 0%, #030A0B 72%);
+      z-index: 9999;
+      transition: opacity .35s ease;
+    }
+    #unicom-loader.hidden { opacity: 0; pointer-events: none; }
+    .unicom-mark {
+      width: 84px; height: 84px; border-radius: 24px;
+      display: flex; align-items: center; justify-content: center;
+      font: 800 40px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #06211F;
+      background: linear-gradient(150deg, #32D8F2, #0BBEDC);
+      box-shadow: 0 10px 40px rgba(11, 190, 220, .35);
+      animation: unicom-pop 1.6s ease-in-out infinite;
+    }
+    .unicom-name { font: 700 24px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #EAF7F9; letter-spacing: 1px; }
+    .unicom-spinner {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 3px solid rgba(50, 216, 242, .25);
+      border-top-color: #32D8F2;
+      animation: unicom-spin .8s linear infinite;
+    }
+    @keyframes unicom-spin { to { transform: rotate(360deg); } }
+    @keyframes unicom-pop { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="unicom-loader">
+    <div class="unicom-mark">➤</div>
+    <div class="unicom-name">UniCom</div>
+    <div class="unicom-spinner"></div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // Hide the HTML loader as soon as Flutter has rendered its first frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('unicom-loader');
+      if (!el) return;
+      el.classList.add('hidden');
+      setTimeout(function () { el.remove(); }, 400);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -17,7 +17,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    _precacheBrandImagery();
     _waitReady();
+  }
+
+  /// Warm the auth/welcome background photos while the splash is visible so
+  /// the first navigation into onboarding/login renders instantly instead of
+  /// decoding a multi-hundred-KB JPEG on the critical path.
+  void _precacheBrandImagery() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final path in const [
+        'assets/onboarding/welcome_2.jpg',
+        'assets/onboarding/welcome_4.jpg',
+        'assets/brand/logo_full.png',
+      ]) {
+        precacheImage(AssetImage(path), context);
+      }
+    });
   }
 
   Future<void> _waitReady() async {

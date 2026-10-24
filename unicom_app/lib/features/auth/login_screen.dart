@@ -33,6 +33,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool get _valid =>
       _email.text.trim().length >= 3 && _password.text.isNotEmpty;
 
+  /// Rebuilds only the submit button as the user types, instead of the whole
+  /// screen (which previously re-laid-out the background photo each keystroke).
+  Widget _submitButton() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_email, _password]),
+      builder: (context, _) {
+        final valid = _valid;
+        return SizedBox(
+          height: 56,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor:
+                  valid ? Palette.teal : Colors.white.withValues(alpha: .16),
+              foregroundColor:
+                  valid ? const Color(0xFF06211F) : Colors.white60,
+              disabledForegroundColor: Colors.white.withValues(alpha: .6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            onPressed: valid && !_loading ? _submit : null,
+            child:
+                _loading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                    : const Text('Log in'),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     setState(() => _loading = true);
     final backend = ref.read(backendProvider);
@@ -89,9 +131,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF030A0B),
+      resizeToAvoidBottomInset: true,
       body: AuthBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(26, 12, 26, 30),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
             const SizedBox(height: 14),
             const Center(
@@ -135,7 +179,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _email,
               keyboardType: TextInputType.text,
               autofillHints: const [AutofillHints.username],
-              onChanged: (_) => setState(() {}),
               style: const TextStyle(color: Colors.white),
               cursorColor: Palette.teal03,
               decoration: underline('Username'),
@@ -144,7 +187,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             TextField(
               controller: _password,
               obscureText: _obscure,
-              onChanged: (_) => setState(() {}),
               style: const TextStyle(color: Colors.white),
               cursorColor: Palette.teal03,
               decoration: underline('Password').copyWith(
@@ -161,39 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             const SizedBox(height: 38),
-            SizedBox(
-              height: 56,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor:
-                      _valid
-                          ? Palette.teal
-                          : Colors.white.withValues(alpha: .16),
-                  foregroundColor:
-                      _valid ? const Color(0xFF06211F) : Colors.white60,
-                  disabledForegroundColor: Colors.white.withValues(alpha: .6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                onPressed: _valid && !_loading ? _submit : null,
-                child:
-                    _loading
-                        ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                        : const Text('Log in'),
-              ),
-            ),
+            _submitButton(),
             const SizedBox(height: 16),
             Center(
               child: GestureDetector(

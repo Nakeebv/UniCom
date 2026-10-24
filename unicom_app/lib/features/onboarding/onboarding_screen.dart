@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
+import '../../shared/widgets/brand_photo.dart';
 import '../../shared/widgets/logo.dart';
 
 /// Welcome page — full-bleed photo background, blended with brand-tuned
@@ -145,20 +146,16 @@ class OnboardingScreen extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Full-bleed photo, edge to edge (behind status bar).
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/onboarding/welcome_2.jpg',
-                  fit: BoxFit.cover,
-                  alignment: const Alignment(0, -0.2),
-                  filterQuality: FilterQuality.high,
-                  errorBuilder:
-                      (_, _, _) => Container(color: const Color(0xFF0C3A44)),
+              const Positioned.fill(
+                child: BrandPhoto(
+                  assetPath: 'assets/onboarding/welcome_2.jpg',
+                  alignment: Alignment(0, -0.2),
                 ),
               ),
               // Blend scrims.
               const Positioned.fill(child: _WelcomeScrim()),
               // Foreground content.
-              short ? SafeArea(child: content) : SafeArea(child: content),
+              SafeArea(child: content),
             ],
           );
         },
