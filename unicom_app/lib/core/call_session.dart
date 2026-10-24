@@ -22,7 +22,11 @@ class CallSession extends ChangeNotifier {
     required this.room,
     required this.isVideo,
     this.callId,
-  });
+  }) {
+    // Voice calls start on the normal communication route (earpiece where
+    // present); video calls start on the loudspeaker.
+    _speakerOn = isVideo;
+  }
 
   final UniComApi api;
   final String room;
@@ -39,7 +43,7 @@ class CallSession extends ChangeNotifier {
   Timer? _durationTimer;
   Duration _duration = Duration.zero;
   bool _frontCamera = true;
-  bool _speakerOn = true;
+  bool _speakerOn = false;
   bool _remoteAudioSubscribed = false;
   void Function()? _cancelEvents;
 
@@ -169,15 +173,24 @@ class CallSession extends ChangeNotifier {
         try {
           final cam = await Permission.camera.request();
           _camDenied = !(cam.isGranted || cam.isLimited);
+          log(
+            'camera permission: granted=${cam.isGranted} limited=${cam.isLimited}',
+          );
           if (!_camDenied) {
             await liveRoom.localParticipant?.setCameraEnabled(true);
-            log('camera published');
+            final camPub = liveRoom.localParticipant
+                ?.getTrackPublicationBySource(lk.TrackSource.camera);
+            final bool camPublished = camPub != null && camPub.track != null;
+            log(
+              'camera publication: published=$camPublished '
+              'muted=${camPub != null && camPub.muted}',
+            );
           } else {
             log('camera denied → continuing audio-only');
           }
         } catch (e) {
           _camDenied = true;
-          log('camera failed → audio-only (${e.toString().split('\n').first})');
+          log('camera FAILED → audio-only: $e');
         }
       }
 

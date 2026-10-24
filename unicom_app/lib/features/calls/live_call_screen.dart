@@ -211,86 +211,109 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                 ),
               ),
             ),
-            Column(
-              children: [
-                const Spacer(flex: 2),
-                // Pulsing avatar
-                if (peer != null)
-                  _PulsingAvatar(
-                    child: UserAvatar(
-                      name: peer.name,
-                      gradient: peer.gradient,
-                      userId: peer.id,
-                      imageUrl: peer.avatarUrl,
-                      size: 128,
-                      showOnline: false,
-                    ),
-                    active: !isError,
-                  )
-                else
-                  const Icon(
-                    Icons.person_rounded,
-                    color: Colors.white38,
-                    size: 128,
-                  ),
-                const SizedBox(height: 26),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.4,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isError
-                          ? Icons.error_outline_rounded
-                          : (video
-                              ? Icons.videocam_rounded
-                              : Icons.phone_rounded),
-                      size: 16,
-                      color: isError ? Palette.danger : Palette.textSecondary,
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color:
-                            isError
-                                ? Palette.danger
-                                : Colors.white.withValues(alpha: .8),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  // Keep content centered within the safe area on every
+                  // viewport; scroll instead of overflow on short/landscape.
+                  final compact = c.maxHeight < 520;
+                  return SingleChildScrollView(
+                    physics:
+                        compact
+                            ? const ClampingScrollPhysics()
+                            : const NeverScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: c.maxHeight),
+                      child: Column(
+                        children: [
+                          SizedBox(height: compact ? 12 : 40),
+                          // Pulsing avatar
+                          if (peer != null)
+                            _PulsingAvatar(
+                              child: UserAvatar(
+                                name: peer.name,
+                                gradient: peer.gradient,
+                                userId: peer.id,
+                                imageUrl: peer.avatarUrl,
+                                size: 128,
+                                showOnline: false,
+                              ),
+                              active: !isError,
+                            )
+                          else
+                            const Icon(
+                              Icons.person_rounded,
+                              color: Colors.white38,
+                              size: 128,
+                            ),
+                          const SizedBox(height: 26),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.4,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isError
+                                    ? Icons.error_outline_rounded
+                                    : (video
+                                        ? Icons.videocam_rounded
+                                        : Icons.phone_rounded),
+                                size: 16,
+                                color:
+                                    isError
+                                        ? Palette.danger
+                                        : Palette.textSecondary,
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color:
+                                      isError
+                                          ? Palette.danger
+                                          : Colors.white.withValues(alpha: .8),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (!isError) ...[
+                            const SizedBox(height: 22),
+                            const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            ),
+                          ],
+                          SizedBox(height: compact ? 28 : 90),
+                          _endButton(context),
+                          const SizedBox(height: 14),
+                          Text(
+                            'End call',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .7),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: compact ? 20 : 44),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                if (!isError) ...[
-                  const SizedBox(height: 22),
-                  const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  ),
-                ],
-                const Spacer(flex: 3),
-                _endButton(context),
-                const SizedBox(height: 14),
-                Text(
-                  'End call',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: .7),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 44),
-              ],
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -347,7 +370,14 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                   child: SizedBox(
                     width: 110,
                     height: 150,
-                    child: lk.VideoTrackRenderer(localVideo),
+                    child: lk.VideoTrackRenderer(
+                      localVideo,
+                      key: ValueKey('local-${localVideo.sid}'),
+                      mirrorMode:
+                          session.localParticipant != null
+                              ? lk.VideoViewMirrorMode.mirror
+                              : lk.VideoViewMirrorMode.mirror,
+                    ),
                   ),
                 ),
               ),

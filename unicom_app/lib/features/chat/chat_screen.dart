@@ -313,9 +313,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ? 'Active now'
                 : 'last seen recently');
 
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final headerBg = dark ? Palette.darkHeader : Palette.lightSurface;
+    final headerInk = dark ? Colors.white : Palette.lightInk;
+    final subtitleInk = dark ? Palette.teal03 : Palette.iris;
     return AppBar(
-      backgroundColor: Palette.darkHeader,
-      foregroundColor: Colors.white,
+      backgroundColor: headerBg,
+      foregroundColor: headerInk,
       elevation: 0,
       leadingWidth: 52,
       leading: IconButton(
@@ -365,10 +369,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: headerInk,
                     ),
                   ),
                   const SizedBox(height: 1),
@@ -379,10 +383,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       fontWeight: FontWeight.w700,
                       color:
                           conv.isTyping
-                              ? Palette.teal03
-                              : Palette.teal03.withValues(
-                                alpha: conv.isTyping ? 1 : .9,
-                              ),
+                              ? subtitleInk
+                              : subtitleInk.withValues(alpha: .9),
                     ),
                     child: Text(
                       subtitle,
