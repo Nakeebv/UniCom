@@ -121,7 +121,10 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
       builder: (context, _) {
         switch (session.phase) {
           case CallPhase.connecting:
-            return _statusScaffold(context, 'Connecting…');
+            return _statusScaffold(
+              context,
+              session.isVideo ? 'Calling…' : 'Ringing…',
+            );
           case CallPhase.reconnecting:
             return _statusScaffold(context, 'Reconnecting…');
           case CallPhase.failed:

@@ -147,9 +147,13 @@ class CallSession extends ChangeNotifier {
         }
       }
 
-      // Media connectivity is only real once the LiveKit engine reports a
-      // full connection — the remote peer still has to join for audio/video
-      // to flow, which surfaces via RoomEvent below.
+      // Room joined but peer hasn't connected yet → still "connecting."
+      // The timer starts ONLY when the remote peer actually joins, so both
+      // devices count from the same moment.
+      if ((liveRoom.remoteParticipants.isEmpty)) {
+        log('waiting for peer to join room…');
+        return;
+      }
       _phase = CallPhase.connected;
       _connectedAt = DateTime.now();
       _startDuration();
@@ -201,6 +205,13 @@ class CallSession extends ChangeNotifier {
     final p = pidOf(event);
     if (event is lk.ParticipantConnectedEvent) {
       log('peer connected: ${_safeId(p)}');
+      if (_phase == CallPhase.connecting) {
+        _phase = CallPhase.connected;
+        _connectedAt = DateTime.now();
+        _startDuration();
+        log('call ACTIVE — peer arrived, timer started');
+      }
+      notifyListeners();
     } else if (event is lk.ParticipantDisconnectedEvent) {
       log('peer disconnected: ${_safeId(p)}');
     } else if (event is lk.TrackSubscribedEvent) {
