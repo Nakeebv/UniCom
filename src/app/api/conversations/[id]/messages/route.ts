@@ -24,6 +24,7 @@ import {
 import { isMember, loadRecentMessages } from "@/lib/serialize";
 import { RULES, enforce } from "@/lib/rate-limit";
 import { publish } from "@/lib/realtime";
+import { sendPushToUser } from "@/lib/fcm";
 
 export const dynamic = "force-dynamic";
 
@@ -166,6 +167,32 @@ export async function POST(request: Request, { params }: Params) {
 
   await markOutboxPublished(outboxId);
   publish({ kind: "message", conversationId, messageId, senderId: me.id });
+
+  // Push every other member (never the sender). Best-effort; no-op when FCM
+  // is unconfigured.
+  void (async () => {
+    try {
+      const members = await db
+        .select({ userId: conversationMembers.userId })
+        .from(conversationMembers)
+        .where(eq(conversationMembers.conversationId, conversationId));
+      for (const mb of members) {
+        if (mb.userId === me.id) continue;
+        await sendPushToUser(mb.userId, {
+          title: me.displayName,
+          body: text ? text.slice(0, 120) : "New message",
+          channelId: "unicom_messages",
+          data: {
+            type: "message",
+            conversation_id: conversationId,
+            message_id: messageId,
+          },
+        });
+      }
+    } catch {
+      /* best-effort */
+    }
+  })();
   if (type === "voice") {
     await enqueueVoiceJobs(messageId);
   } else {

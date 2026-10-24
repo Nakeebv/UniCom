@@ -5,6 +5,7 @@ import { calls, conversationMembers, userBlocks } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { newId } from "@/lib/ids";
 import { publish } from "@/lib/realtime";
+import { sendPushToUser } from "@/lib/fcm";
 import { RULES, enforce } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,23 @@ export async function POST(request: Request) {
     status: "ringing",
     participants: [me.id, calleeId],
   } as never);
+
+  // Push the callee so they ring even outside the app (best-effort; no-op
+  // when FCM is unconfigured — never claimed as delivered).
+  void sendPushToUser(calleeId, {
+    title: callType === "video" ? "Incoming video call" : "Incoming voice call",
+    body: `${me.displayName} is calling…`,
+    channelId: "unicom_calls",
+    highPriority: true,
+    data: {
+      type: "call",
+      call_id: id,
+      caller_id: me.id,
+      call_type: callType,
+      room,
+    },
+  }).catch(() => {});
+
   return NextResponse.json({ call_id: id, room, call_type: callType }, { status: 201 });
 }
 

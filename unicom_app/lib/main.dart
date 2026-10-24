@@ -7,6 +7,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'app.dart';
+import 'core/push_service.dart';
 import 'util/web_strategy.dart';
 import 'providers.dart';
 
@@ -33,6 +34,10 @@ Future<void> main() async {
   if (kIsWeb) {
     useHashUrls();
   }
+
+  // Firebase Cloud Messaging: initialise before runApp so background/tap
+  // handlers are registered early. No-op on web/desktop.
+  await PushService.instance.init();
 
   final container = ProviderContainer();
   // Warm the backend without blocking first paint (WhatsApp-like cold

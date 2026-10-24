@@ -241,6 +241,19 @@ export const messageReceipts = pgTable(
   ],
 );
 
+export const deviceTokens = pgTable(
+  "device_tokens",
+  {
+    token: text("token").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: text("platform").notNull().default("android"),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("ix_device_tokens_user").on(t.userId)],
+);
+
 export const userBlocks = pgTable("user_blocks", {
   blockerId: text("blocker_id")
     .notNull()

@@ -334,6 +334,18 @@ class UniComApi {
     }
   }
 
+  /// Registers (or refreshes) this device's FCM token against the signed-in
+  /// user so the backend can deliver call/message pushes.
+  Future<void> registerDeviceToken({
+    required String token,
+    required String platform,
+  }) async {
+    await session.post(
+      '/api/me/device',
+      body: {'token': token, 'platform': platform},
+    );
+  }
+
   Future<void> typing(String conversationId) {
     return (session.post(
           '/api/typing',

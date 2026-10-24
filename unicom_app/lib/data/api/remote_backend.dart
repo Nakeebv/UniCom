@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/push_service.dart';
 import '../backend_base.dart';
 import 'uni_session.dart';
 import 'unicom_api.dart';
@@ -78,6 +79,7 @@ class RemoteBackend extends UniBackend {
     _startTimers();
     ready = true;
     notifyListeners();
+    unawaited(PushService.instance.registerWithBackend(api));
   }
 
   void _startTimers() {
@@ -568,6 +570,7 @@ class RemoteBackend extends UniBackend {
     _startTimers();
     ready = true;
     notifyListeners();
+    unawaited(PushService.instance.registerWithBackend(api));
   }
 
   /// Real password sign-in (used by the login screen's live mode).
