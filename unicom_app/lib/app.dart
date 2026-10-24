@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/call_ring_controller.dart';
 import 'core/theme/theme.dart';
 import 'features/auth/language_setup_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -170,18 +171,42 @@ class _UniComAppState extends ConsumerState<UniComApp> {
 
 /// Global incoming-call overlay: watches the backend's ringing state and
 /// surfaces the incoming-call screen over whatever the user is doing.
-class _CallRinger extends ConsumerWidget {
+class _CallRinger extends ConsumerStatefulWidget {
   const _CallRinger({required this.child});
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CallRinger> createState() => _CallRingerState();
+}
+
+class _CallRingerState extends ConsumerState<_CallRinger> {
+  final CallRingController _ringer = CallRingController();
+  bool _wasRinging = false;
+
+  @override
+  void dispose() {
+    _ringer.stopRinging();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(backendProvider, (_, next) {
+      final call = next.isSignedIn ? next.incomingCall : null;
+      if (call != null && !_wasRinging) {
+        _ringer.startRinging();
+        _wasRinging = true;
+      } else if (call == null && _wasRinging) {
+        _ringer.stopRinging();
+        _wasRinging = false;
+      }
+    });
+
     final backend = ref.watch(backendProvider);
-    // Only ring for signed-in live users; never overlay the login flow.
     final call = backend.isSignedIn ? backend.incomingCall : null;
     return Stack(
       children: [
-        child,
+        widget.child,
         if (call != null)
           Positioned.fill(
             child: IncomingCallOverlay(
