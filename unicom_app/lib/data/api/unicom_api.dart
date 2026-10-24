@@ -37,6 +37,21 @@ class UniComApi {
 
   /// Debounced availability probe used by the signup form. Returns booleans
   /// only (`username_ok` / `email_ok`); nulls for fields not sent.
+  /// Uploads (or replaces) the caller's avatar from raw encoded bytes.
+  Future<Map<String, dynamic>> uploadAvatarBytes({
+    required Uint8List bytes,
+    required String mimeType,
+  }) async {
+    final data = await session.post(
+      '/api/me/avatar',
+      body: {'base64': base64Encode(bytes), 'mimeType': mimeType},
+    );
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
+  /// Removes the caller's avatar (reverts to initials).
+  Future<void> removeAvatar() => session.delete('/api/me/avatar');
+
   Future<Map<String, dynamic>> checkAvailability({
     String? username,
     String? email,

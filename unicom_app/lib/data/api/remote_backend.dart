@@ -926,6 +926,34 @@ class RemoteBackend extends UniBackend {
   }
 
   @override
+  Future<bool> updateAvatar({
+    required Uint8List bytes,
+    required String mimeType,
+  }) async {
+    await _withAuth(
+      () => api.uploadAvatarBytes(bytes: bytes, mimeType: mimeType),
+    );
+    // Authoritative refresh: server assigns the avatar path.
+    _me = _mapMe(await api.me() ?? <String, dynamic>{});
+    notifyListeners();
+    return true;
+  }
+
+  @override
+  Future<bool> removeAvatar() async {
+    try {
+      await session.delete('/api/me/avatar');
+    } on ApiError catch (e) {
+      if (e.unauthorized) return false;
+      rethrow;
+    }
+    // Authoritative refresh (clears avatarUrl everywhere).
+    _me = _mapMe(await api.me() ?? <String, dynamic>{});
+    notifyListeners();
+    return true;
+  }
+
+  @override
   Future<void> setPrivacyFlag({
     bool? readReceipts,
     bool? lastSeenVisible,

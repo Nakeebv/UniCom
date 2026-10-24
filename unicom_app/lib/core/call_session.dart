@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:permission_handler/permission_handler.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
@@ -24,6 +26,7 @@ class CallSession extends ChangeNotifier {
   String? _error;
   bool _micEnabled = true;
   bool _camEnabled = true;
+  bool _camDenied = false;
   DateTime? _connectedAt;
   Timer? _durationTimer;
   Duration _duration = Duration.zero;
@@ -33,6 +36,7 @@ class CallSession extends ChangeNotifier {
   String? get error => _error;
   bool get micEnabled => _micEnabled;
   bool get camEnabled => _camEnabled;
+  bool get camDenied => _camDenied;
   Duration get duration => _duration;
   lk.Room? get liveRoom => _liveRoom;
 
@@ -75,10 +79,19 @@ class CallSession extends ChangeNotifier {
 
       liveRoom.addListener(_onRoomChanged);
       await liveRoom.connect(url, token);
-      // Publish local media per call type.
+      // Publish local media per call type. Video degradation is graceful:
+      // denied/broken camera → the call continues audio-only (per brief).
       await liveRoom.localParticipant?.setMicrophoneEnabled(true);
       if (isVideo) {
-        await liveRoom.localParticipant?.setCameraEnabled(true);
+        try {
+          final cam = await Permission.camera.request();
+          _camDenied = !(cam.isGranted || cam.isLimited);
+          if (!_camDenied) {
+            await liveRoom.localParticipant?.setCameraEnabled(true);
+          }
+        } catch (_) {
+          _camDenied = true;
+        }
       }
       _phase = CallPhase.connected;
       _connectedAt = DateTime.now();

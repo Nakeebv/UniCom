@@ -282,6 +282,15 @@ class MockBackend extends UniBackend {
   }
 
   @override
+  Future<bool> updateAvatar({
+    required Uint8List bytes,
+    required String mimeType,
+  }) async => false;
+
+  @override
+  Future<bool> removeAvatar() async => false;
+
+  @override
   Future<void> updateProfile({
     String? name,
     String? username,

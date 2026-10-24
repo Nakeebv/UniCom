@@ -94,6 +94,16 @@ abstract class UniBackend extends ChangeNotifier {
   Future<void> setSpeechLanguage(String code);
   Future<void> setVoice(String voiceId);
   Future<void> updateProfile({String? name, String? username, String? about});
+
+  /// Replaces the caller's avatar from encoded image bytes. Returns true on
+  /// success (false = mode/storage doesn't support it — surfaced honestly).
+  Future<bool> updateAvatar({
+    required Uint8List bytes,
+    required String mimeType,
+  }) async => false;
+
+  /// Removes the caller's avatar. Returns true when a removal happened.
+  Future<bool> removeAvatar() async => false;
   Future<void> setPrivacyFlag({
     bool? readReceipts,
     bool? lastSeenVisible,

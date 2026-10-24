@@ -27,6 +27,7 @@ import { detectLanguageByPhrase } from "@/lib/i18n/phrasebook";
 import { translateText } from "@/lib/providers/translation";
 import { transcribeAudio, sttConfigured } from "@/lib/providers/stt";
 import { synthesizeSpeech, ttsSupportedFor } from "@/lib/providers/tts";
+import { mmsSupportedFor, synthesizeMms } from "@/lib/providers/tts-mms";
 import { getObjectBytes, mediaKeys, storeObject } from "@/lib/storage";
 import { mediaAssets } from "@/db/schema";
 import { publish } from "@/lib/realtime";
@@ -506,7 +507,7 @@ async function runVoicePipeline(messageId: string, target: string, sourceVersion
   /* Real TTS via Workers AI melotts for covered languages. A speech failure
      never erases the completed translation: the job completes text-only with
      an honest detail, and the recipient keeps "text + original audio". */
-  if (!ttsSupportedFor(target)) {
+  if (!ttsSupportedFor(target) && !mmsSupportedFor(target)) {
     await setVoiceJob(messageId, target, {
       status: "completed",
       detail: `Translation ready — spoken variant not available for ${target} (demo)`,
@@ -549,14 +550,20 @@ async function runVoicePipeline(messageId: string, target: string, sourceVersion
       return;
     }
 
-    const speech = await synthesizeSpeech(spokenText, target);
+    let speech: { bytes: Uint8Array; mimeType: string; provider: string };
+    if (ttsSupportedFor(target)) {
+      speech = await synthesizeSpeech(spokenText, target);
+    } else {
+      speech = await synthesizeMms(spokenText, target);
+    }
     const assetId = newId("med");
+    const ext = speech.mimeType.includes('wav')
+      ? 'wav'
+      : speech.mimeType.includes('flac')
+        ? 'flac'
+        : 'mp3';
     const stored = await storeObject(
-      mediaKeys.ttsVariant(
-        messageId,
-        target,
-        speech.mimeType.includes('wav') ? 'wav' : 'mp3',
-      ),
+      mediaKeys.ttsVariant(messageId, target, ext),
       speech.bytes,
       speech.mimeType,
     );

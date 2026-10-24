@@ -248,6 +248,12 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  const SizedBox(height: 6),
+                  if (session.isVideo && session.camDenied)
+                    const Text(
+                      'audio-only (camera unavailable)',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
                   Text(
                     _clock(session.duration),
                     style: TextStyle(
