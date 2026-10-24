@@ -76,7 +76,6 @@ class RemoteBackend extends UniBackend {
     await _refreshDirectory();
     await _refreshSummaries();
     _startTimers();
-    startCallPolling();
     ready = true;
     notifyListeners();
   }
@@ -95,6 +94,7 @@ class RemoteBackend extends UniBackend {
       (_) => _safeMessageRefresh(),
     );
     _startEvents();
+    startCallPolling();
   }
 
   /// Live Server-Sent Events stream — the primary realtime channel.
