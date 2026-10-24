@@ -169,3 +169,30 @@ export async function sendPushToUser(
   );
   return { sent, failed, configured: true };
 }
+
+
+/** Safe diagnostics: config presence + token count, never secrets. */
+export async function fcmStatus(userId: string): Promise<{
+  configured: boolean;
+  hasServiceAccount: boolean;
+  hasDirectToken: boolean;
+  projectId: string | null;
+  serviceAccountEmailMasked: string | null;
+  deviceCount: number;
+}> {
+  const sa = serviceAccount();
+  const rows = await db
+    .select({ token: deviceTokens.token })
+    .from(deviceTokens)
+    .where(eq(deviceTokens.userId, userId));
+  const email = sa?.client_email ?? null;
+  const masked = email ? email.replace(/^(.{4}).*(@.*)$/, "$1***$2") : null;
+  return {
+    configured: fcmConfigured(),
+    hasServiceAccount: Boolean(sa),
+    hasDirectToken: Boolean(env("FCM_ACCESS_TOKEN")),
+    projectId: fcmProjectId(),
+    serviceAccountEmailMasked: masked,
+    deviceCount: rows.length,
+  };
+}

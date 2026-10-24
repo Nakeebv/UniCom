@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1057759883714",
+    "project_id": "unicom-d4984",
+    "storage_bucket": "unicom-d4984.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057759883714:android:ff9b4e915c7c83b8ec665b",
+        "android_client_info": {
+          "package_name": "com.unicom.unicom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBH3DA4SfoWB8aJknJv1v_xGgErpzaDDOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
