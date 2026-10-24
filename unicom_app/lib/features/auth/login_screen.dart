@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
-import '../../shared/widgets/ui_kit.dart';
 import '../../providers.dart';
+import '../../shared/widgets/auth_background.dart';
 import '../../shared/widgets/logo.dart';
 
-/// Kit login: underline fields, teal labels, disabled→enabled pill.
+/// Log in — username + password, on the shared branded photo background.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -30,18 +32,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool get _valid =>
       _email.text.trim().length >= 3 && _password.text.isNotEmpty;
-
-  /// Google OAuth is wired to the backend endpoint; when the server has no
-  /// Google credentials configured it returns 503 and we say so honestly.
-  void _continueWithGoogle(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Google sign-in needs GOOGLE_CLIENT_ID/SECRET configured on the server.',
-        ),
-      ),
-    );
-  }
 
   Future<void> _submit() async {
     setState(() => _loading = true);
@@ -77,244 +67,217 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await _submit();
   }
 
+  InputDecoration underline(String label) => InputDecoration(
+    filled: false,
+    contentPadding: const EdgeInsets.only(top: 8, bottom: 12),
+    border: InputBorder.none,
+    enabledBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Colors.white24),
+    ),
+    focusedBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Palette.teal03, width: 1.5),
+    ),
+    labelText: label,
+    labelStyle: const TextStyle(
+      color: Palette.teal03,
+      fontSize: 14.5,
+      fontWeight: FontWeight.w600,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final ink = scheme.onSurface;
-
-    InputDecoration underline(String label) => InputDecoration(
-      filled: false,
-      contentPadding: const EdgeInsets.only(top: 8, bottom: 12),
-      border: InputBorder.none,
-      enabledBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Palette.border),
-      ),
-      focusedBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Palette.iris),
-      ),
-      labelText: label,
-      labelStyle: const TextStyle(
-        color: Palette.iris,
-        fontSize: 14.5,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        foregroundColor: ink,
-      ),
-      body: SafeArea(
-        child: MaxWidthBody(
-          padding: EdgeInsets.zero,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(26, 8, 26, 30),
-            children: [
-              const SizedBox(height: 10),
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: 'Log in to '),
-                      TextSpan(
-                        text: 'UniCom',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: ink,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Palette.teal03,
-                          decorationThickness: 3,
-                          decorationStyle: TextDecorationStyle.solid,
-                        ),
+      backgroundColor: const Color(0xFF030A0B),
+      body: AuthBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(26, 12, 26, 30),
+          children: [
+            const SizedBox(height: 14),
+            const Center(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Log in to '),
+                    TextSpan(
+                      text: 'UniCom',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Palette.teal03,
+                        decorationThickness: 3,
+                        decorationStyle: TextDecorationStyle.solid,
                       ),
-                    ],
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: ink,
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Welcome back! Sign in to continue the conversation in your language.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 26),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: OutlinedButton.icon(
-                  onPressed: () => _continueWithGoogle(context),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: scheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(27),
-                    ),
-                    foregroundColor: scheme.onSurface,
-                  ),
-                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 26),
-              Center(
-                child: Text(
-                  'OR',
+                  ],
                   style: TextStyle(
-                    color: scheme.onSurfaceVariant.withValues(alpha: .8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.4,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _email,
-                keyboardType: TextInputType.text,
-                onChanged: (_) => setState(() {}),
-                decoration: underline('Username'),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Welcome back! Sign in to continue the conversation in your '
+              'language.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: Colors.white.withValues(alpha: .72),
               ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _password,
-                obscureText: _obscure,
-                onChanged: (_) => setState(() {}),
-                decoration: underline('Password').copyWith(
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 20,
-                      color: Palette.iris,
-                    ),
+            ),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _email,
+              keyboardType: TextInputType.text,
+              autofillHints: const [AutofillHints.username],
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline('Username'),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _password,
+              obscureText: _obscure,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline('Password').copyWith(
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                    color: Palette.teal03,
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
-              SizedBox(
-                height: 56,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _valid ? Palette.cyan : Palette.darkCard2,
-                    disabledBackgroundColor: Palette.darkCard2,
-                    foregroundColor:
-                        _valid ? Colors.white : scheme.onSurfaceVariant,
-                    disabledForegroundColor: scheme.onSurfaceVariant,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                    ),
+            ),
+            const SizedBox(height: 38),
+            SizedBox(
+              height: 56,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      _valid
+                          ? Palette.teal
+                          : Colors.white.withValues(alpha: .16),
+                  foregroundColor:
+                      _valid ? const Color(0xFF06211F) : Colors.white60,
+                  disabledForegroundColor: Colors.white.withValues(alpha: .6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  onPressed: _valid && !_loading ? _submit : null,
-                  child:
-                      _loading
-                          ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                          : const Text('Log in'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      color: Palette.iris,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  textStyle: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+                onPressed: _valid && !_loading ? _submit : null,
+                child:
+                    _loading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                        : const Text('Log in'),
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    children: [
-                      const TextSpan(text: 'New to UniCom? '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: GestureDetector(
-                          onTap: () => context.go('/auth/register'),
-                          child: const Text(
-                            'Sign up',
-                            style: TextStyle(
-                              color: Palette.iris,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                            ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: GestureDetector(
+                onTap: () {},
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    color: Palette.teal03,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: Colors.white.withValues(alpha: .72),
+                  ),
+                  children: [
+                    const TextSpan(text: 'New to UniCom? '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: GestureDetector(
+                        onTap: () => context.go('/auth/register'),
+                        child: const Text(
+                          'Sign up',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (useRemoteBackend) ...[
-                const SizedBox(height: 26),
-                Center(
-                  child: Text(
-                    'QUICK TEST ACCOUNTS',
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _loading ? null : () => _quickSignIn('alex'),
-                        child: const Text('Sign in as Alex'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _loading ? null : () => _quickSignIn('maya'),
-                        child: const Text('Sign in as Maya'),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'QUICK TEST ACCOUNTS',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .55),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _loading ? null : () => _quickSignIn('alex'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                    child: const Text('Sign in as Alex'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _loading ? null : () => _quickSignIn('maya'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                    child: const Text('Sign in as Maya'),
+                  ),
+                ),
               ],
-              const SizedBox(height: 18),
-              const Center(child: UniComLogo(size: 34)),
-            ],
-          ),
+            ),
+            const SizedBox(height: 18),
+            const Center(child: UniComLogo(size: 34)),
+          ],
         ),
       ),
     );

@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/palette.dart';
-import '../../shared/widgets/ui_kit.dart';
 import '../../providers.dart';
 import '../../data/api/uni_session.dart';
+import '../../shared/widgets/auth_background.dart';
 
-/// Kit signup: teal labels, underline fields, confirm password,
-/// inline error state, disabled→enabled pill.
+/// Sign-up: username + email availability (debounced), password strength,
+/// dark branded photo background consistent with the welcome page.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -42,14 +42,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  String? get _emailError {
-    if (_email.text.isEmpty) return null;
-    if (!RegExp(r'.+@.+\..+').hasMatch(_email.text)) {
-      return 'Invalid email address';
-    }
-    return null;
-  }
-
   bool get _passwordStrong =>
       _password.text.length >= 8 &&
       RegExp(r'[A-Za-z]').hasMatch(_password.text) &&
@@ -58,7 +50,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool get _valid {
     final wantsUsername = RegExp(
       r'^[a-z0-9_]{3,24}$',
-    ).hasMatch(_username.text.trim().toLowerCase());
+    ).hasMatch(_username.text.trim());
     return _name.text.trim().length >= 2 &&
         wantsUsername &&
         _usernameAvailable == true &&
@@ -108,6 +100,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  String? get _emailError {
+    if (_email.text.isEmpty) return null;
+    if (!RegExp(r'.+@.+\..+').hasMatch(_email.text)) {
+      return 'Invalid email address';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     setState(() => _loading = true);
     await ref
@@ -121,6 +121,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!mounted) return;
     context.go('/auth/verify');
   }
+
+  InputDecoration underline(String label, {String? error}) => InputDecoration(
+    filled: false,
+    contentPadding: const EdgeInsets.only(top: 8, bottom: 12),
+    border: InputBorder.none,
+    enabledBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Colors.white24),
+    ),
+    focusedBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Palette.teal03, width: 1.5),
+    ),
+    errorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Palette.danger),
+    ),
+    focusedErrorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Palette.danger, width: 1.4),
+    ),
+    errorText: error,
+    labelText: label,
+    labelStyle: const TextStyle(
+      color: Palette.teal03,
+      fontSize: 14.5,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 
   Widget? _availIcon(bool? v) {
     if (_checking) {
@@ -165,221 +190,198 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final emailError = _emailError;
 
-    InputDecoration underline({required String label, String? error}) =>
-        InputDecoration(
-          filled: false,
-          contentPadding: const EdgeInsets.only(top: 8, bottom: 12),
-          border: InputBorder.none,
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(
-              color: error != null ? Palette.danger : Palette.border,
-            ),
-          ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Palette.iris),
-          ),
-          errorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Palette.danger),
-          ),
-          errorStyle: const TextStyle(
-            color: Palette.danger,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-          labelText: label,
-          labelStyle: const TextStyle(
-            color: Palette.iris,
-            fontSize: 14.5,
-            fontWeight: FontWeight.w600,
-          ),
-        );
-
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        foregroundColor: scheme.onSurface,
-      ),
-      body: SafeArea(
-        child: MaxWidthBody(
-          padding: EdgeInsets.zero,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(26, 8, 26, 30),
-            children: [
-              const SizedBox(height: 10),
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: 'Sign up with '),
-                      TextSpan(
-                        text: 'Email',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Palette.teal03,
-                          decorationThickness: 3,
-                        ),
-                      ),
-                    ],
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Get chatting today — every conversation arrives in your own language.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 30),
-              TextField(
-                controller: _name,
-                onChanged: (_) => setState(() {}),
-                decoration: underline(label: 'Your name'),
-              ),
-              const SizedBox(height: 22),
-              TextField(
-                controller: _username,
-                onChanged: (_) {
-                  setState(() => _usernameAvailable = null);
-                  _scheduleCheck();
-                },
-                decoration: underline(
-                  label: 'Username (@handle)',
-                ).copyWith(suffixIcon: _availIcon(_usernameAvailable)),
-              ),
-              _availHint(
-                _usernameAvailable,
-                okText: 'Username is available',
-                badText: 'That username is taken',
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                onChanged: (_) {
-                  setState(() => _emailAvailable = null);
-                  _scheduleCheck();
-                },
-                decoration: underline(
-                  label: 'Your email',
-                  error: emailError,
-                ).copyWith(suffixIcon: _availIcon(_emailAvailable)),
-              ),
-              if (emailError != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      emailError,
-                      style: const TextStyle(
-                        color: Palette.danger,
-                        fontSize: 12,
+      backgroundColor: const Color(0xFF030A0B),
+      body: AuthBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(26, 20, 26, 30),
+          children: [
+            const SizedBox(height: 10),
+            const Center(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Sign up with '),
+                    TextSpan(
+                      text: 'Email',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Palette.teal03,
+                        decorationThickness: 3,
                       ),
                     ),
+                  ],
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
-              _availHint(
-                _emailAvailable,
-                okText: 'Email is available',
-                badText: 'An account with this email already exists',
               ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _password,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                decoration: underline(label: 'Password'),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Get chatting today — every conversation arrives in your own '
+              'language.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: Colors.white.withValues(alpha: .75),
               ),
-              const SizedBox(height: 22),
-              TextField(
-                controller: _confirm,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                decoration: underline(label: 'Confirm Password').copyWith(
-                  errorText:
-                      _confirm.text.isNotEmpty &&
-                              _confirm.text != _password.text
-                          ? 'Passwords don\'t match'
-                          : null,
-                ),
-              ),
-              const SizedBox(height: 46),
-              SizedBox(
-                height: 56,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _valid ? Palette.cyan : Palette.darkCard2,
-                    disabledBackgroundColor: Palette.darkCard2,
-                    foregroundColor:
-                        _valid ? Colors.white : scheme.onSurfaceVariant,
-                    disabledForegroundColor: scheme.onSurfaceVariant,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  onPressed: _valid && !_loading ? _submit : null,
-                  child:
-                      _loading
-                          ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                          : const Text('Create an account'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: Text.rich(
-                  TextSpan(
+            ),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _name,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline('Your name'),
+            ),
+            const SizedBox(height: 22),
+            TextField(
+              controller: _username,
+              onChanged: (_) {
+                setState(() => _usernameAvailable = null);
+                _scheduleCheck();
+              },
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline(
+                'Username (@handle)',
+              ).copyWith(suffixIcon: _availIcon(_usernameAvailable)),
+            ),
+            _availHint(
+              _usernameAvailable,
+              okText: 'Username is available',
+              badText: 'That username is taken',
+            ),
+            const SizedBox(height: 22),
+            TextField(
+              controller: _email,
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (_) {
+                setState(() => _emailAvailable = null);
+                _scheduleCheck();
+              },
+              decoration: underline(
+                'Your email',
+                error: emailError,
+              ).copyWith(suffixIcon: _availIcon(_emailAvailable)),
+            ),
+            _availHint(
+              _emailAvailable,
+              okText: 'Email is available',
+              badText: 'An account with this email already exists',
+            ),
+            const SizedBox(height: 22),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline('Password'),
+            ),
+            if (_password.text.isNotEmpty && !_passwordStrong)
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(top: 4, left: 6),
+                  child: Text(
+                    'At least 8 characters with a letter and a number',
                     style: TextStyle(
-                      fontSize: 13.5,
-                      color: scheme.onSurfaceVariant,
+                      color: Palette.warning,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                    children: [
-                      const TextSpan(text: 'Already have an account? '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: GestureDetector(
-                          onTap: () => context.go('/auth/login'),
-                          child: const Text(
-                            'Log in',
-                            style: TextStyle(
-                              color: Palette.iris,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                            ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 22),
+            TextField(
+              controller: _confirm,
+              obscureText: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Palette.teal03,
+              decoration: underline('Confirm Password').copyWith(
+                errorText:
+                    _confirm.text.isNotEmpty && _confirm.text != _password.text
+                        ? "Passwords don't match"
+                        : null,
+              ),
+            ),
+            const SizedBox(height: 46),
+            SizedBox(
+              height: 56,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      _valid
+                          ? Palette.teal
+                          : Colors.white.withValues(alpha: .16),
+                  foregroundColor:
+                      _valid ? const Color(0xFF06211F) : Colors.white60,
+                  disabledForegroundColor: Colors.white.withValues(alpha: .6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: _valid && !_loading ? _submit : null,
+                child:
+                    _loading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                        : const Text('Create an account'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: Colors.white.withValues(alpha: .72),
+                  ),
+                  children: [
+                    const TextSpan(text: 'Already have an account? '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: GestureDetector(
+                        onTap: () => context.go('/auth/login'),
+                        child: const Text(
+                          'Log in',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

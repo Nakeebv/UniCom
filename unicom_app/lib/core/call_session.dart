@@ -110,17 +110,15 @@ class CallSession extends ChangeNotifier {
       log('token acquired (room: $room, ${token.length}b payload)');
 
       final liveRoom = lk.Room(
-        roomOptions: lk.RoomOptions(
+        roomOptions: const lk.RoomOptions(
           adaptiveStream: true,
           dynacast: true,
-          defaultAudioCaptureOptions: const lk.AudioCaptureOptions(
+          defaultAudioCaptureOptions: lk.AudioCaptureOptions(
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
           ),
-          defaultAudioOutputOptions: const lk.AudioOutputOptions(
-            speakerOn: true,
-          ),
+          defaultAudioOutputOptions: lk.AudioOutputOptions(speakerOn: true),
         ),
         connectOptions: const lk.ConnectOptions(autoSubscribe: true),
       );

@@ -230,6 +230,7 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                           // Pulsing avatar
                           if (peer != null)
                             _PulsingAvatar(
+                              active: !isError,
                               child: UserAvatar(
                                 name: peer.name,
                                 gradient: peer.gradient,
@@ -238,7 +239,6 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                                 size: 128,
                                 showOnline: false,
                               ),
-                              active: !isError,
                             )
                           else
                             const Icon(
