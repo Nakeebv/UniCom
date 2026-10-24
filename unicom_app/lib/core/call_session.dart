@@ -70,7 +70,7 @@ class CallSession extends ChangeNotifier {
   /// wss host name for log hygiene.
   void log(String message) {
     // ignore: avoid_print
-    print('[unicom-call][$room/$identityTag] $message');
+    debugPrint('[unicom-call][$room/$identityTag] $message');
   }
 
   String get identityTag => isVideo ? 'video' : 'audio';
@@ -102,7 +102,21 @@ class CallSession extends ChangeNotifier {
       log('token acquired (room: $room, ${token.length}b payload)');
 
       final liveRoom = lk.Room(
-        roomOptions: const lk.RoomOptions(adaptiveStream: true, dynacast: true),
+        roomOptions: lk.RoomOptions(
+          adaptiveStream: true,
+          dynacast: true,
+          defaultAudioCaptureOptions: const lk.AudioCaptureOptions(
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          ),
+          defaultAudioOutputOptions: const lk.AudioOutputOptions(
+            speakerOn: true,
+          ),
+        ),
+        connectOptions: const lk.ConnectOptions(
+          autoSubscribe: true,
+        ),
       );
       _liveRoom = liveRoom;
 
@@ -127,6 +141,14 @@ class CallSession extends ChangeNotifier {
       final mic = await Permission.microphone.request();
       if (!mic.isGranted) {
         throw StateError('Microphone permission was not granted');
+      }
+      final micP = await Permission.microphone.request();
+      log('mic permission: \$micP');
+      if (!micP.isGranted) {
+        _error = 'Microphone permission denied — cannot send audio.';
+        _phase = CallPhase.failed;
+        notifyListeners();
+        return;
       }
       await liveRoom.localParticipant?.setMicrophoneEnabled(true);
       log('microphone published');
