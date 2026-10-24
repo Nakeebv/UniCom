@@ -39,6 +39,8 @@ class CallSession extends ChangeNotifier {
   Timer? _durationTimer;
   Duration _duration = Duration.zero;
   bool _frontCamera = true;
+  bool _speakerOn = true;
+  bool _remoteAudioSubscribed = false;
   void Function()? _cancelEvents;
 
   CallPhase get phase => _phase;
@@ -46,6 +48,8 @@ class CallSession extends ChangeNotifier {
   bool get micEnabled => _micEnabled;
   bool get camEnabled => _camEnabled;
   bool get camDenied => _camDenied;
+  bool get speakerOn => _speakerOn;
+  bool get remoteAudioSubscribed => _remoteAudioSubscribed;
   Duration get duration => _duration;
   lk.Room? get liveRoom => _liveRoom;
 
@@ -114,9 +118,7 @@ class CallSession extends ChangeNotifier {
             speakerOn: true,
           ),
         ),
-        connectOptions: const lk.ConnectOptions(
-          autoSubscribe: true,
-        ),
+        connectOptions: const lk.ConnectOptions(autoSubscribe: true),
       );
       _liveRoom = liveRoom;
 
@@ -138,20 +140,30 @@ class CallSession extends ChangeNotifier {
 
       // Publish local media per call type. Mic permission first: without it
       // some Android ROMs silently produce an empty track.
-      final mic = await Permission.microphone.request();
-      if (!mic.isGranted) {
-        throw StateError('Microphone permission was not granted');
-      }
       final micP = await Permission.microphone.request();
-      log('mic permission: \$micP');
+      log('mic permission: granted=${micP.isGranted}');
       if (!micP.isGranted) {
         _error = 'Microphone permission denied — cannot send audio.';
         _phase = CallPhase.failed;
         notifyListeners();
         return;
       }
-      await liveRoom.localParticipant?.setMicrophoneEnabled(true);
-      log('microphone published');
+      final pub = await liveRoom.localParticipant?.setMicrophoneEnabled(true);
+      // Confirm the track is actually live — a return value alone isn't proof.
+      final micPub = liveRoom.localParticipant?.getTrackPublicationBySource(
+        lk.TrackSource.microphone,
+      );
+      final bool micPublished = micPub != null && micPub.track != null;
+      final bool micMuted = micPub != null && micPub.muted;
+      log('mic publication: published=$micPublished muted=$micMuted');
+      if (pub == null || micPub == null) {
+        log('WARNING: microphone track not confirmed published');
+      }
+
+      // Route to the loudspeaker for call audio (Android/iOS). The SDK owns
+      // routing via audioswitch; AudioOutputOptions in RoomOptions does NOT
+      // switch the live route on Android.
+      _applySpeakerOutput();
 
       if (isVideo) {
         try {
@@ -238,6 +250,11 @@ class CallSession extends ChangeNotifier {
       log('peer disconnected: ${_safeId(p)}');
     } else if (event is lk.TrackSubscribedEvent) {
       log('remote ${event.track.kind} subscribed: ${_safeId(p)}');
+      if (event.track.kind == lk.TrackType.AUDIO) {
+        _remoteAudioSubscribed = true;
+        log('REMOTE AUDIO subscribed — playback should now be audible');
+        notifyListeners();
+      }
     } else if (event is lk.TrackUnsubscribedEvent) {
       log('remote ${event.track.kind} unsubscribed: ${_safeId(p)}');
     } else if (event is lk.TrackMutedEvent || event is lk.TrackUnmutedEvent) {
@@ -307,6 +324,26 @@ class CallSession extends ChangeNotifier {
     } catch (_) {
       /* camera switching unsupported on this platform */
     }
+  }
+
+  /// Apply the current speaker preference through the SDK's audio router.
+  /// (AudioOutputOptions in RoomOptions does not switch the live route.)
+  void _applySpeakerOutput() {
+    if (!lk.AudioManager.instance.canSwitchSpeakerphone) return;
+    lk.AudioManager.instance
+        .setSpeakerOutputPreferred(_speakerOn, force: true)
+        .then((_) => log('speaker route applied: on=$_speakerOn (force)'))
+        .catchError((e) {
+          log('speaker route failed: $e');
+          return;
+        });
+  }
+
+  /// Toggle between loudspeaker and earpiece. Returns the effective state.
+  Future<void> toggleSpeaker() async {
+    _speakerOn = !_speakerOn;
+    _applySpeakerOutput();
+    notifyListeners();
   }
 
   Future<void> hangUp() async {

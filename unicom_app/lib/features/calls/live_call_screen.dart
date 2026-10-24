@@ -321,6 +321,16 @@ class _LiveCallScreenState extends ConsumerState<LiveCallScreen> {
                     onTap: session.toggleMic,
                   ),
                   const SizedBox(width: 18),
+                  // Speaker / earpiece — drives the real Android/iOS route.
+                  _round(
+                    icon:
+                        session.speakerOn
+                            ? Icons.volume_up_rounded
+                            : Icons.volume_down_rounded,
+                    active: !session.speakerOn,
+                    onTap: session.toggleSpeaker,
+                  ),
+                  const SizedBox(width: 18),
                   if (session.isVideo) ...[
                     _round(
                       icon:
